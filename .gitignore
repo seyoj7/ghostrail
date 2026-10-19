@@ -1,0 +1,7 @@
+node_modules
+.agents
+.env
+next-env.d.ts
+.next
+target/
+data/
