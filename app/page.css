@@ -57,6 +57,49 @@
   line-height: 1.5;
 }
 
+.integration-card {
+  margin-bottom: 32px;
+}
+
+.integration-eyebrow {
+  color: var(--text-accent);
+  margin-bottom: 10px;
+}
+
+.integration-title {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.integration-copy {
+  max-width: 760px;
+  line-height: 1.6;
+  margin-bottom: 18px;
+}
+
+.integration-copy code {
+  margin: 0 4px;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.integration-code {
+  overflow-x: auto;
+  padding: 18px;
+  border: 1px solid var(--border-card);
+  border-radius: 10px;
+  background: var(--bg-page);
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.integration-register-link {
+  margin-top: 16px;
+}
+
 .status-card {
   display: flex;
   justify-content: space-between;

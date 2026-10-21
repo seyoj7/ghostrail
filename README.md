@@ -12,6 +12,19 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to view the application.
 
+## Seller service registry
+
+Sellers can register an existing service endpoint, seller wallet, and devnet
+USDC price at `/services`. Registrations are listed as unverified; this page
+stores the URL but does not call or proxy the seller API or verify ownership.
+The facilitator stores registrations in `data/db.json` alongside devnet payment
+records, so use persistent shared storage before running multiple instances or
+deploying to an ephemeral serverless environment.
+
+The seller integration calls `POST /api` to check a buyer-signed transaction.
+That check does not submit the transaction or confirm on-chain settlement.
+Sellers must confirm settlement before delivering a resource.
+
 ## Available Scripts
 
 - `npm run dev` - Starts the development server

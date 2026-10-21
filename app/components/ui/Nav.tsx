@@ -35,6 +35,12 @@ export function Nav() {
           Dashboard
         </Link>
         <Link
+          href="/services"
+          className={`nav__link ${pathname.startsWith("/services") ? "nav__link--active" : ""}`}
+        >
+          Services
+        </Link>
+        <Link
           href="/attack-lab"
           className={`nav__link ${pathname.startsWith("/attack-lab") ? "nav__link--active" : ""
             }`}

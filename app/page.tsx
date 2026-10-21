@@ -24,8 +24,8 @@ export default function Home() {
             <Link href="/dashboard" className="btn">
               Open dashboard
             </Link>
-            <Link href="/attack-lab" className="btn2">
-              Try the attack lab
+            <Link href="/services" className="btn2">
+              Register a service
             </Link>
           </div>
         </div>
@@ -73,19 +73,34 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ── Facilitator Online Status Banner ──────────────── */}
-        <div className="card status-card">
-          <div>
-            <div className="ok status-indicator">Facilitator online</div>
-            <div className="mut mono status-details">
-              network solana:devnet &nbsp; fee payer 7xKp...3mQ2
-            </div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div className="balance-amount">1.84 SOL</div>
-            <div className="mut balance-label">fee-payer balance</div>
-          </div>
-        </div>
+        <section
+          className="card integration-card"
+          aria-labelledby="seller-integration-title"
+        >
+          <div className="mono integration-eyebrow">SELLER INTEGRATION</div>
+          <h2 className="integration-title" id="seller-integration-title">
+            Register your API, integrate verification
+          </h2>
+          <p className="mut integration-copy">
+            First register your endpoint, seller wallet, and price on the Services
+            page. Registration does not connect your API automatically. From your
+            server, send the buyer&apos;s base64 signed transaction to the facilitator
+            for validation. This endpoint does not submit the transaction or confirm
+            settlement; confirm payment on-chain before delivering the resource.
+            <code>amount</code> is in token base units.
+          </p>
+          <pre className="integration-code"><code>{`const response = await fetch(FACILITATOR_URL + "/api", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ transaction, seller, amount, mint }),
+});
+const payment = await response.json();
+if (!response.ok || payment.accepted !== true) throw new Error("Payment rejected");
+// Continue only after your on-chain settlement check succeeds.`}</code></pre>
+          <Link href="/services" className="btn2 integration-register-link">
+            Register your service API
+          </Link>
+        </section>
       </div>
     </div>
   );

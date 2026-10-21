@@ -19,52 +19,10 @@ interface PaymentRecord {
   settledAt: string | null;
 }
 
-const DEFAULT_SAMPLE_PAYMENTS = [
-  {
-    time: "12:04:11",
-    seller: "Demo seller",
-    amount: "0.001 USDC",
-    statusText: "Released",
-    isOk: true,
-    tx: "5kF2...9aQ",
-  },
-  {
-    time: "12:04:02",
-    seller: "Demo seller",
-    amount: "0.001 USDC",
-    statusText: "Rejected: wrong_amount",
-    isOk: false,
-    tx: "none",
-  },
-  {
-    time: "12:03:48",
-    seller: "Demo seller",
-    amount: "0.001 USDC",
-    statusText: "Rejected: replayed",
-    isOk: false,
-    tx: "none",
-  },
-  {
-    time: "12:03:30",
-    seller: "Demo seller",
-    amount: "0.001 USDC",
-    statusText: "Released",
-    isOk: true,
-    tx: "9Zt1...cL4",
-  },
-  {
-    time: "12:03:12",
-    seller: "Demo seller",
-    amount: "0.001 USDC",
-    statusText: "Rejected: fee_payer_misuse",
-    isOk: false,
-    tx: "none",
-  },
-];
-
 export default function DashboardPage() {
   const [records, setRecords] = useState<PaymentRecord[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
@@ -74,10 +32,15 @@ export default function DashboardPage() {
         const data = await res.json();
         if (Array.isArray(data)) {
           setRecords(data);
+          setLoadError(false);
+        } else {
+          setLoadError(true);
         }
+      } else {
+        setLoadError(true);
       }
     } catch {
-      // Silently fall back to sample records
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -87,10 +50,8 @@ export default function DashboardPage() {
     fetchRecords();
   }, [fetchRecords]);
 
-  const verifiedCount =
-    records.length > 0 ? records.filter((r) => r.accepted).length : 128;
-  const rejectedCount =
-    records.length > 0 ? records.filter((r) => !r.accepted).length : 37;
+  const verifiedCount = records.filter((r) => r.accepted).length;
+  const rejectedCount = records.filter((r) => !r.accepted).length;
 
   return (
     <div className="pg">
@@ -111,11 +72,11 @@ export default function DashboardPage() {
           </div>
           <div className="card stat-card">
             <div className="mut stat-label">Fees sponsored</div>
-            <div className="mut stat-val">0.0006 SOL</div>
+            <div className="mut stat-val">Not available</div>
           </div>
           <div className="card stat-card">
             <div className="mut stat-label">Fee-payer balance</div>
-            <div className="mut stat-val">1.84 SOL</div>
+            <div className="mut stat-val">Not available</div>
           </div>
         </div>
 
@@ -142,13 +103,8 @@ export default function DashboardPage() {
             <span>Transaction</span>
           </div>
 
-          {records.length > 0
-            ? records.map((record) => {
+          {records.map((record) => {
                 const timeStr = new Date(record.createdAt).toLocaleTimeString();
-                const isReleased =
-                  record.escrowState === "Released" ||
-                  (record.accepted && !record.escrowState);
-                const isRefunded = record.escrowState === "Refunded";
                 const isOk = record.accepted;
                 const statusLabel = isOk
                   ? record.escrowState
@@ -186,20 +142,13 @@ export default function DashboardPage() {
                     </span>
                   </div>
                 );
-              })
-            : DEFAULT_SAMPLE_PAYMENTS.map((row, idx) => (
-                <div className="row" key={idx}>
-                  <span className="mono mut">{row.time}</span>
-                  <span>{row.seller}</span>
-                  <span>{row.amount}</span>
-                  <span>
-                    <span className={row.isOk ? "ok" : "bad"}>
-                      {row.statusText}
-                    </span>
-                  </span>
-                  <span className="mono tx-hash">{row.tx}</span>
-                </div>
-              ))}
+              })}
+          {!loading && loadError && (
+            <div className="row">Could not load payment records.</div>
+          )}
+          {!loading && !loadError && records.length === 0 && (
+            <div className="row">No payment records yet.</div>
+          )}
         </div>
       </div>
     </div>

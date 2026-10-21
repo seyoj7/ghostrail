@@ -24,19 +24,34 @@ interface PaymentRecordRow {
   settledAt: string | null;
 }
 
+export interface RegisteredService {
+  id: string;
+  name: string;
+  endpointUrl: string;
+  sellerWallet: string;
+  priceUsdc: string;
+  createdAt: string;
+}
+
 interface Database {
   seenSignatures: Record<string, string>; // signature → ISO timestamp
   paymentRecords: PaymentRecordRow[];
+  registeredServices: RegisteredService[];
 }
 
 function loadDb(): Database {
   if (!existsSync(DB_PATH)) {
-    return { seenSignatures: {}, paymentRecords: [] };
+    return { seenSignatures: {}, paymentRecords: [], registeredServices: [] };
   }
   try {
-    return JSON.parse(readFileSync(DB_PATH, "utf-8"));
+    const parsed = JSON.parse(readFileSync(DB_PATH, "utf-8"));
+    return {
+      seenSignatures: parsed.seenSignatures ?? {},
+      paymentRecords: parsed.paymentRecords ?? [],
+      registeredServices: parsed.registeredServices ?? [],
+    };
   } catch {
-    return { seenSignatures: {}, paymentRecords: [] };
+    return { seenSignatures: {}, paymentRecords: [], registeredServices: [] };
   }
 }
 
@@ -106,4 +121,24 @@ export function getRecentPayments(limit = 50): PaymentRecordRow[] {
   return db.paymentRecords
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, limit);
+}
+
+/** Register a seller's public service endpoint. */
+export function addRegisteredService(
+  service: Omit<RegisteredService, "id" | "createdAt">
+): RegisteredService {
+  const db = loadDb();
+  const registered: RegisteredService = {
+    ...service,
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+  };
+  db.registeredServices.unshift(registered);
+  saveDb(db);
+  return registered;
+}
+
+/** List seller service registrations. */
+export function getRegisteredServices(): RegisteredService[] {
+  return loadDb().registeredServices;
 }
