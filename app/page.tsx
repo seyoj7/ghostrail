@@ -11,10 +11,10 @@ export default function Home() {
         {/* â”€â”€ Hero Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div className="hero-block">
           <div className="mono hero-subtitle-tag">
-            x402 facilitator for Solana, devnet
+            x402 facilitator for Solana
           </div>
           <h1 className="hero-title">
-            Payments that settle. Fees that vanish.
+            Payments that settle. <br />Fees that vanish.
           </h1>
           <p className="mut hero-description">
             AI agents and apps pay for APIs in USDC with no SOL needed. Funds sit

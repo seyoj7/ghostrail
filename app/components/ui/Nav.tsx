@@ -11,7 +11,7 @@ export function Nav() {
     <nav className="nav" aria-label="Main Navigation">
       <Link href="/" className="nav__brand">
         <Image
-          src="/favicon.png"
+          src="/logo.webp"
           alt="Ghostrail"
           width={30}
           height={30}
