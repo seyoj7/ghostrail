@@ -11,10 +11,10 @@ private keys with them.
 
 ## Prerequisites
 
-Install the Node dependencies first:
+Install the Python dependencies first:
 
 ```powershell
-npm install
+python -m pip install -r scripts/requirements.txt
 ```
 
 Create a root `.env` file. The demo payment script reads it automatically.
@@ -32,13 +32,13 @@ BUYER_PRIVATE_KEY=<base58-buyer-private-key>
 The buyer wallet needs devnet SOL for rent and transaction fees, plus devnet
 USDC for the payment.
 
-## `generate-keys.mjs`
+## `generate-keys.py`
 
 Generates fresh Solana keypairs for the facilitator and fee payer. It prints
 their base58 private keys and public addresses.
 
 ```powershell
-node scripts/generate-keys.mjs
+python scripts/generate-keys.py
 ```
 
 Copy the two private-key lines into `.env`:
@@ -52,19 +52,19 @@ Fund the displayed public addresses on devnet. These wallets are separate from
 the escrow program deployer, buyer, and seller wallets. Do not run this again
 unless you intentionally want new wallets.
 
-## `show-addresses.mjs`
+## `show-addresses.py`
 
 Reads `FACILITATOR_PRIVATE_KEY` and `FEE_PAYER_PRIVATE_KEY` from `.env` and
 prints only their corresponding public addresses. It does not print private
 keys.
 
 ```powershell
-node scripts/show-addresses.mjs
+python scripts/show-addresses.py
 ```
 
 Use the printed addresses to check balances or request devnet SOL.
 
-## `create-demo-payment.mjs`
+## `create-demo-payment.py`
 
 Creates and submits a devnet escrow lock transaction using the buyer wallet,
 then sends the signed transaction to the running facilitator at `POST /api`.
@@ -72,13 +72,13 @@ It creates the buyer's associated token account when necessary.
 The buyer also pays the escrow account rent, so Solana may serialize the buyer, payer, and seller positions as one account when they use the same wallet.
 
 ```powershell
-node scripts/create-demo-payment.mjs <SELLER_PUBLIC_WALLET> <AMOUNT_USDC>
+python scripts/create-demo-payment.py <SELLER_PUBLIC_WALLET> <AMOUNT_USDC>
 ```
 
 Example:
 
 ```powershell
-node scripts/create-demo-payment.mjs 2D8pmhdpZCmWnS23qpWsKecgXts2RAszFjHLDpFXYniD 0.01
+python scripts/create-demo-payment.py 2D8pmhdpZCmWnS23qpWsKecgXts2RAszFjHLDpFXYniD 0.01
 ```
 
 The seller argument is a public wallet address, never a private key. The
@@ -98,7 +98,7 @@ The script requires `SOLANA_RPC_URL`, `ESCROW_PROGRAM_ID`, `USDC_MINT`, and
 The script submits the lock and verifies the payment; it does not release or
 refund the escrow.
 
-## `settle-demo-payment.mjs`
+## `settle-demo-payment.py`
 
 Builds a seller-signed release or buyer-signed refund transaction and sends it
 to the facilitator at `PUT /api`. The facilitator adds its fee-payer signature
@@ -107,13 +107,13 @@ and submits the settlement on devnet.
 Release after the seller has delivered the resource:
 
 ```powershell
-node scripts/settle-demo-payment.mjs release <ESCROW_ADDRESS>
+python scripts/settle-demo-payment.py release <ESCROW_ADDRESS>
 ```
 
 Refund after the escrow timeout:
 
 ```powershell
-node scripts/settle-demo-payment.mjs refund <ESCROW_ADDRESS>
+python scripts/settle-demo-payment.py refund <ESCROW_ADDRESS>
 ```
 
 Refunds use `BUYER_PRIVATE_KEY`. Releases use `SELLER_PRIVATE_KEY`; when the
