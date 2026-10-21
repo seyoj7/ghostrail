@@ -292,6 +292,34 @@ export async function getRecentPayments(
   );
   return result.rows.map(mapPaymentRecord);
 }
+export interface AutoRefundCandidate {
+  escrowAddress: string;
+  seller: string;
+  serviceUrls: string[];
+}
+
+/** Get locked payments that have a registered seller service to check. */
+export async function getAutoRefundCandidates(): Promise<AutoRefundCandidate[]> {
+  await ensureDatabase();
+  const result = await pool.query<{
+    escrow_address: string;
+    seller: string;
+    service_urls: string[];
+  }>(
+    'SELECT p.escrow_address, p.seller, ARRAY_AGG(DISTINCT s.endpoint_url) AS service_urls ' +
+      'FROM payment_records p ' +
+      'INNER JOIN registered_services s ON s.seller_wallet = p.seller ' +
+      'WHERE p.accepted = TRUE ' +
+      'AND p.escrow_address IS NOT NULL ' +
+      "AND p.escrow_state = 'Locked' " +
+      'GROUP BY p.escrow_address, p.seller'
+  );
+  return result.rows.map((row) => ({
+    escrowAddress: row.escrow_address,
+    seller: row.seller,
+    serviceUrls: row.service_urls,
+  }));
+}
 
 /** Register a seller's public service endpoint. */
 export async function addRegisteredService(

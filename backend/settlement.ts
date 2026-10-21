@@ -1,50 +1,44 @@
 import "server-only";
 
-import {
-  Connection,
-  PublicKey,
-  Keypair,
-  Transaction,
-  sendAndConfirmTransaction,
-} from "@solana/web3.js";
-import { Program, AnchorProvider } from "@coral-xyz/anchor";
+import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import bs58 from "bs58";
-import idl from "../escrow/idl/escrow.json";
 import { updatePaymentByEscrow } from "./db";
 import { fetchEscrow } from "./escrow";
 import { EscrowState } from "../types/escrow";
-
-/** Minimal wallet adapter for AnchorProvider (ESM-compatible). */
-class NodeWallet {
-  constructor(readonly payer: Keypair) {}
-  get publicKey() { return this.payer.publicKey; }
-  async signTransaction(tx: Transaction) { tx.partialSign(this.payer); return tx; }
-  async signAllTransactions(txs: Transaction[]) { txs.forEach(t => t.partialSign(this.payer)); return txs; }
-}
-
-// ── Config ──────────────────────────────────────────────────────────
 
 const connection = new Connection(process.env.SOLANA_RPC_URL!, "confirmed");
 const facilitatorKeypair = Keypair.fromSecretKey(
   bs58.decode(process.env.FACILITATOR_PRIVATE_KEY!)
 );
+const ESCROW_PROGRAM_ID = new PublicKey(process.env.ESCROW_PROGRAM_ID!);
+const TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+const TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
+const RELEASE_DISCRIMINATOR = Buffer.from([253, 249, 15, 206, 28, 127, 193, 241]);
+const REFUND_DISCRIMINATOR = Buffer.from([2, 96, 183, 251, 63, 208, 46, 46]);
 
-const provider = new AnchorProvider(
-  connection,
-  new NodeWallet(facilitatorKeypair) as any,
-  { commitment: "confirmed" }
-);
-const program = new Program(idl as any, provider);
+type SettlementResult = { success: boolean; signature?: string; error?: string };
 
-/**
- * Release escrowed funds to the seller.
- *
- * Called after the seller confirms delivery. The facilitator submits
- * the release transaction on behalf of the seller.
- */
+/** Submit a seller-signed release transaction. */
 export async function releaseEscrow(
-  escrowAddress: string
-): Promise<{ success: boolean; error?: string }> {
+  escrowAddress: string,
+  serializedTransaction: string
+): Promise<SettlementResult> {
+  return settleEscrow(escrowAddress, serializedTransaction, "release");
+}
+
+/** Submit a buyer-signed refund transaction. */
+export async function refundEscrow(
+  escrowAddress: string,
+  serializedTransaction: string
+): Promise<SettlementResult> {
+  return settleEscrow(escrowAddress, serializedTransaction, "refund");
+}
+
+async function settleEscrow(
+  escrowAddress: string,
+  serializedTransaction: string,
+  action: "release" | "refund"
+): Promise<SettlementResult> {
   try {
     const escrow = await fetchEscrow(escrowAddress);
     if (!escrow) {
@@ -55,106 +49,90 @@ export async function releaseEscrow(
     }
 
     const escrowPubkey = new PublicKey(escrowAddress);
-    const mintPubkey = new PublicKey(escrow.mint);
-    const buyerPubkey = new PublicKey(escrow.buyer);
-    const sellerPubkey = new PublicKey(escrow.seller);
+    const tx = Transaction.from(Buffer.from(serializedTransaction, "base64"));
+    const instruction = tx.instructions.length === 1 ? tx.instructions[0] : undefined;
+    if (!instruction || !tx.feePayer?.equals(facilitatorKeypair.publicKey) || !tx.recentBlockhash) {
+      return { success: false, error: "Settlement transaction must use the facilitator as fee payer" };
+    }
+    if (!instruction.programId.equals(ESCROW_PROGRAM_ID) || !tx.verifySignatures(false)) {
+      return { success: false, error: "Settlement transaction is invalid or unsigned" };
+    }
+    if (instruction.keys.some((key) => key.pubkey.equals(facilitatorKeypair.publicKey))) {
+      return { success: false, error: "Facilitator cannot be an escrow authority" };
+    }
 
-    // Derive vault PDA
     const [vaultPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("vault"), escrowPubkey.toBuffer()],
-      new PublicKey(process.env.ESCROW_PROGRAM_ID!)
+      ESCROW_PROGRAM_ID
     );
+    const mint = new PublicKey(escrow.mint);
+    const buyer = new PublicKey(escrow.buyer);
+    const seller = new PublicKey(escrow.seller);
+    const expectedSigner = action === "release" ? seller : buyer;
+    const expectedDiscriminator = action === "release" ? RELEASE_DISCRIMINATOR : REFUND_DISCRIMINATOR;
 
-    // Find the seller's associated token account
-    const { getAssociatedTokenAddress } = await import("@solana/spl-token");
-    const sellerToken = await getAssociatedTokenAddress(mintPubkey, sellerPubkey);
+    if (!instruction.data.equals(expectedDiscriminator)) {
+      return { success: false, error: `Transaction is not a ${action} instruction` };
+    }
+    if (!instruction.keys.some((key) => key.pubkey.equals(expectedSigner) && key.isSigner)) {
+      return { success: false, error: "The required buyer or seller signature is missing" };
+    }
+    if (!tx.signatures.some((entry) => entry.publicKey.equals(expectedSigner) && entry.signature)) {
+      return { success: false, error: "The required buyer or seller signature is missing" };
+    }
 
-    const tx = await (program.methods as any)
-      .release()
-      .accounts({
-        buyer: buyerPubkey,
-        seller: sellerPubkey,
-        mint: mintPubkey,
-        escrow: escrowPubkey,
-        vault: vaultPda,
-        sellerToken,
-      })
-      .transaction();
+    if (action === "release") {
+      if (
+        instruction.keys.length !== 7 ||
+        !instruction.keys[0].pubkey.equals(buyer) ||
+        !instruction.keys[0].isWritable ||
+        !instruction.keys[1].pubkey.equals(seller) ||
+        !instruction.keys[1].isSigner ||
+        !instruction.keys[2].pubkey.equals(mint) ||
+        !instruction.keys[3].pubkey.equals(escrowPubkey) ||
+        !instruction.keys[4].pubkey.equals(vaultPda) ||
+        !instruction.keys[5].isWritable ||
+        !isTokenProgram(instruction.keys[6].pubkey)
+      ) {
+        return { success: false, error: "Release accounts do not match escrow state" };
+      }
+    } else if (
+      instruction.keys.length !== 6 ||
+      !instruction.keys[0].pubkey.equals(buyer) ||
+      !instruction.keys[0].isSigner ||
+      !instruction.keys[0].isWritable ||
+      !instruction.keys[1].pubkey.equals(mint) ||
+      !instruction.keys[2].pubkey.equals(escrowPubkey) ||
+      !instruction.keys[3].pubkey.equals(vaultPda) ||
+      !instruction.keys[4].isWritable ||
+      !isTokenProgram(instruction.keys[5].pubkey)
+    ) {
+      return { success: false, error: "Refund accounts do not match escrow state" };
+    }
 
-    tx.feePayer = facilitatorKeypair.publicKey;
-    tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    tx.partialSign(facilitatorKeypair);
+    if (!tx.verifySignatures(true)) {
+      return { success: false, error: "Settlement transaction is not fully signed" };
+    }
+    const signature = await connection.sendRawTransaction(tx.serialize(), {
+      skipPreflight: false,
+      preflightCommitment: "confirmed",
+    });
+    const confirmation = await connection.confirmTransaction(signature, "confirmed");
+    if (confirmation.value.err) {
+      return { success: false, error: "Settlement transaction failed on-chain" };
+    }
 
-    await sendAndConfirmTransaction(connection, tx, [facilitatorKeypair]);
-
-    // Update the database record
     await updatePaymentByEscrow(escrowAddress, {
-      escrowState: EscrowState.Released,
+      escrowState: action === "release" ? EscrowState.Released : EscrowState.Refunded,
       settledAt: new Date().toISOString(),
     });
-
-    return { success: true };
+    return { success: true, signature };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { success: false, error: message };
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
 
-/**
- * Refund escrowed funds to the buyer.
- *
- * Called when delivery fails or times out.
- */
-export async function refundEscrow(
-  escrowAddress: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const escrow = await fetchEscrow(escrowAddress);
-    if (!escrow) {
-      return { success: false, error: "Escrow account not found" };
-    }
-    if (escrow.state !== EscrowState.Locked) {
-      return { success: false, error: `Escrow is ${escrow.state}, not Locked` };
-    }
-
-    const escrowPubkey = new PublicKey(escrowAddress);
-    const mintPubkey = new PublicKey(escrow.mint);
-    const buyerPubkey = new PublicKey(escrow.buyer);
-
-    // Derive vault PDA
-    const [vaultPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("vault"), escrowPubkey.toBuffer()],
-      new PublicKey(process.env.ESCROW_PROGRAM_ID!)
-    );
-
-    // Find the buyer's associated token account
-    const { getAssociatedTokenAddress } = await import("@solana/spl-token");
-    const buyerToken = await getAssociatedTokenAddress(mintPubkey, buyerPubkey);
-
-    const tx = await (program.methods as any)
-      .refund()
-      .accounts({
-        buyer: buyerPubkey,
-        mint: mintPubkey,
-        escrow: escrowPubkey,
-        vault: vaultPda,
-        buyerToken,
-      })
-      .transaction();
-
-    tx.feePayer = facilitatorKeypair.publicKey;
-    tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-
-    await sendAndConfirmTransaction(connection, tx, [facilitatorKeypair]);
-
-    // Update the database record
-    await updatePaymentByEscrow(escrowAddress, {
-      escrowState: EscrowState.Refunded,
-      settledAt: new Date().toISOString(),
-    });
-
-    return { success: true };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { success: false, error: message };
-  }
+function isTokenProgram(key: PublicKey): boolean {
+  return key.toBase58() === TOKEN_PROGRAM_ID || key.toBase58() === TOKEN_2022_PROGRAM_ID;
 }

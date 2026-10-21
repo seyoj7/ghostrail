@@ -8,6 +8,10 @@ export interface VerifyResult {
   reason?: RejectionReason;
   /** Transaction signature, present when accepted. */
   signature?: string;
+  /** Escrow PDA when the lock instruction was valid. */
+  escrowAddress?: string;
+  /** Verification state; this is not proof of settlement. */
+  state?: "Locked" | "Pre-submission";
 }
 
 /** Shape of a verify request from the seller to the facilitator. */
@@ -28,6 +32,8 @@ export interface SettleRequest {
   escrowAddress: string;
   /** Whether to release to seller or refund to buyer. */
   action: "release" | "refund";
+  /** Base64 transaction signed by the buyer or seller. */
+  transaction: string;
 }
 
 /** Payment record stored in the database. */

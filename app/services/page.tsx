@@ -37,7 +37,8 @@ export default function ServicesPage() {
   }, []);
 
   useEffect(() => {
-    loadServices();
+    const timer = window.setTimeout(() => void loadServices(), 0);
+    return () => window.clearTimeout(timer);
   }, [loadServices]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -124,7 +125,7 @@ export default function ServicesPage() {
           {error && <p className="bad service-message" role="alert">{error}</p>}
           {notice && <p className="ok service-message" role="status">{notice}</p>}
           <button className="btn service-submit" type="submit" disabled={submitting}>
-            {submitting ? "Registering…" : "Register service"}
+            {submitting ? "RegisteringÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : "Register service"}
           </button>
         </form>
 
@@ -132,7 +133,7 @@ export default function ServicesPage() {
           <h2 className="service-list-heading" id="registered-services-title">
             Registered services
           </h2>
-          {loading && <p className="mut">Loading services…</p>}
+          {loading && <p className="mut">Loading servicesÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦</p>}
           {!loading && error && services.length === 0 && (
             <p className="mut">Service registrations could not be loaded.</p>
           )}

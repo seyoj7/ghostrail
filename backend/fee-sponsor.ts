@@ -4,59 +4,52 @@ import {
   Connection,
   Keypair,
   Transaction,
-  sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import bs58 from "bs58";
 
-// ── Config ──────────────────────────────────────────────────────────
-
 const connection = new Connection(process.env.SOLANA_RPC_URL!, "confirmed");
-
-/**
- * The fee-payer wallet. This wallet pays SOL transaction fees so buyers
- * don't need SOL. It must NEVER be used as an authority on escrow accounts.
- */
 const feePayerKeypair = Keypair.fromSecretKey(
   bs58.decode(process.env.FEE_PAYER_PRIVATE_KEY!)
 );
 
-/**
- * Sign and submit a transaction with the fee-payer covering SOL fees.
- *
- * The buyer constructs and signs the transaction, then this function
- * adds the fee-payer as the actual fee payer and co-signs.
- *
- * @param serializedTransaction - Base64-encoded partially-signed transaction
- * @returns The transaction signature
- */
+/** Add the fee payer and blockhash before the buyer signs. */
+export async function prepareForSponsorship(
+  serializedTransaction: string
+): Promise<string> {
+  const tx = Transaction.from(Buffer.from(serializedTransaction, "base64"));
+  tx.feePayer = feePayerKeypair.publicKey;
+  tx.recentBlockhash = (await connection.getLatestBlockhash("confirmed")).blockhash;
+  return tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString("base64");
+}
+
+/** Submit a prepared transaction without changing its signed message. */
 export async function sponsorAndSubmit(
   serializedTransaction: string
 ): Promise<string> {
-  const buffer = Buffer.from(serializedTransaction, "base64");
-  const tx = Transaction.from(buffer);
+  const tx = Transaction.from(Buffer.from(serializedTransaction, "base64"));
+  if (!tx.feePayer?.equals(feePayerKeypair.publicKey) || !tx.recentBlockhash) {
+    throw new Error("Transaction must be prepared with the configured fee payer before signing");
+  }
+  if (!tx.verifySignatures(false)) {
+    throw new Error("Transaction contains an invalid signature");
+  }
 
-  // Set fee payer and get a fresh blockhash
-  tx.feePayer = feePayerKeypair.publicKey;
-  const { blockhash } = await connection.getLatestBlockhash("confirmed");
-  tx.recentBlockhash = blockhash;
-
-  // Partially sign with the fee-payer (buyer's signature is already present)
   tx.partialSign(feePayerKeypair);
+  if (!tx.verifySignatures(true)) {
+    throw new Error("Transaction is not fully signed");
+  }
 
   const signature = await connection.sendRawTransaction(tx.serialize(), {
     skipPreflight: false,
     preflightCommitment: "confirmed",
   });
-
-  await connection.confirmTransaction(signature, "confirmed");
-
+  const confirmation = await connection.confirmTransaction(signature, "confirmed");
+  if (confirmation.value.err) {
+    throw new Error("Sponsored transaction failed on-chain");
+  }
   return signature;
 }
 
-/**
- * Get the fee-payer's public key.
- * Used by the API route to tell clients who the fee payer is.
- */
 export function getFeePayerPublicKey(): string {
   return feePayerKeypair.publicKey.toBase58();
 }

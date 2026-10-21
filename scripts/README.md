@@ -69,6 +69,7 @@ Use the printed addresses to check balances or request devnet SOL.
 Creates and submits a devnet escrow lock transaction using the buyer wallet,
 then sends the signed transaction to the running facilitator at `POST /api`.
 It creates the buyer's associated token account when necessary.
+The buyer also pays the escrow account rent, so Solana may serialize the buyer, payer, and seller positions as one account when they use the same wallet.
 
 ```powershell
 node scripts/create-demo-payment.mjs <SELLER_PUBLIC_WALLET> <AMOUNT_USDC>
@@ -96,6 +97,31 @@ The script requires `SOLANA_RPC_URL`, `ESCROW_PROGRAM_ID`, `USDC_MINT`, and
 `BUYER_PRIVATE_KEY`. Amounts use USDC units with up to six decimal places.
 The script submits the lock and verifies the payment; it does not release or
 refund the escrow.
+
+## `settle-demo-payment.mjs`
+
+Builds a seller-signed release or buyer-signed refund transaction and sends it
+to the facilitator at `PUT /api`. The facilitator adds its fee-payer signature
+and submits the settlement on devnet.
+
+Release after the seller has delivered the resource:
+
+```powershell
+node scripts/settle-demo-payment.mjs release <ESCROW_ADDRESS>
+```
+
+Refund after the escrow timeout:
+
+```powershell
+node scripts/settle-demo-payment.mjs refund <ESCROW_ADDRESS>
+```
+
+Refunds use `BUYER_PRIVATE_KEY`. Releases use `SELLER_PRIVATE_KEY`; when the
+seller and buyer are the same wallet, the script can use `BUYER_PRIVATE_KEY`.
+Set `FACILITATOR_PUBLIC_KEY` to the facilitator address, or let the script
+derive it from the local `FACILITATOR_PRIVATE_KEY` without printing the secret.
+The script never submits a settlement until the required buyer or seller
+signature is present.
 
 ## Typical local flow
 

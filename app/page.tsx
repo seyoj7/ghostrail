@@ -8,7 +8,7 @@ export default function Home() {
       <div className="in">
         <Nav />
 
-        {/* ── Hero Section ───────────────────────────────────── */}
+        {/* â”€â”€ Hero Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div className="hero-block">
           <div className="mono hero-subtitle-tag">
             x402 facilitator for Solana, devnet
@@ -18,7 +18,7 @@ export default function Home() {
           </h1>
           <p className="mut hero-description">
             AI agents and apps pay for APIs in USDC with no SOL needed. Funds sit
-            in escrow and refund automatically if the API fails.
+            in escrow and the buyer can refund after the timeout if the API fails.
           </p>
           <div className="hero-actions">
             <Link href="/dashboard" className="btn">
@@ -30,7 +30,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ── 5-Step Process Flow ────────────────────────────── */}
+        {/* â”€â”€ 5-Step Process Flow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div className="steps-grid">
           <div className="card step-card">
             <div className="mono step-number">1</div>

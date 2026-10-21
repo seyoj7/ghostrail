@@ -31,6 +31,9 @@ export enum RejectionReason {
   ReplayedSignature = "REPLAYED_SIGNATURE",
   /** The transaction is malformed or failed to deserialize. */
   MalformedTransaction = "MALFORMED_TRANSACTION",
+  InvalidSignature = "INVALID_SIGNATURE",
+  /** The transaction was already submitted and failed on-chain. */
+  TransactionFailed = "TRANSACTION_FAILED",
   /** Settlement (release/refund) failed on-chain. */
   SettlementFailed = "SETTLEMENT_FAILED",
 }
