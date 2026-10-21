@@ -1,0 +1,48 @@
+/* ── Escrow Timeline Page Styles ──────────────────────────────────── */
+.escrow-heading {
+  margin: 24px 0 8px;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.escrow-subtitle {
+  margin: 0 0 24px;
+  font-size: 15px;
+}
+
+.timeline-columns {
+  display: flex;
+  gap: 24px;
+}
+
+.timeline-card {
+  flex: 1;
+  min-width: 0;
+}
+
+.timeline-card-header {
+  font-size: 13px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.timeline-step {
+  padding: 16px 0;
+  border-top: 1px solid var(--border-card);
+}
+
+.timeline-step-title {
+  font-weight: 700;
+}
+
+.timeline-step-meta {
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+@media (max-width: 800px) {
+  .timeline-columns {
+    flex-direction: column;
+  }
+}

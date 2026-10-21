@@ -1,125 +1,93 @@
 import "./page.css";
 import Link from "next/link";
+import { Nav } from "./components/ui/Nav";
 
 export default function Home() {
   return (
-    <>
-      {/* ── Nav ──────────────────────────────────────────────── */}
-      <nav className="nav">
-        <div className="nav__logo">
-          <span className="gradient-text">GHOSTRAIL</span>
-        </div>
-        <div className="nav__links">
-          <Link href="/dashboard" className="nav__link">
-            Dashboard
-          </Link>
-          <a
-            href="https://github.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="nav__link"
-          >
-            GitHub
-          </a>
-        </div>
-      </nav>
+    <div className="pg">
+      <div className="in">
+        <Nav />
 
-      {/* ── Hero ─────────────────────────────────────────────── */}
-      <section className="hero">
-        <div className="hero__content">
-          <span className="hero__badge">Solana Devnet · x402 Protocol</span>
-
-          <h1 className="hero__title">
-            <span className="gradient-text">Payments that</span>
-            <br />
-            protect both sides
+        {/* ── Hero Section ───────────────────────────────────── */}
+        <div className="hero-block">
+          <div className="mono hero-subtitle-tag">
+            x402 facilitator for Solana, devnet
+          </div>
+          <h1 className="hero-title">
+            Payments that settle. Fees that vanish.
           </h1>
-
-          <p className="hero__subtitle">
-            GHOSTRAIL is a self-hosted x402 payment facilitator. AI agents pay
-            for APIs in USDC — funds are held in on-chain escrow and released
-            only after delivery. Failed calls refund automatically.
+          <p className="mut hero-description">
+            AI agents and apps pay for APIs in USDC with no SOL needed. Funds sit
+            in escrow and refund automatically if the API fails.
           </p>
-
-          {/* Flow */}
-          <div className="flow">
-            <span className="flow__step glass">🤖 Agent pays</span>
-            <span className="flow__arrow">→</span>
-            <span className="flow__step glass">🔒 Escrow locks</span>
-            <span className="flow__arrow">→</span>
-            <span className="flow__step glass">✅ API delivers</span>
-            <span className="flow__arrow">→</span>
-            <span className="flow__step glass">💰 Seller paid</span>
-          </div>
-
-          <div className="cta-row">
-            <Link href="/dashboard" className="btn btn--primary">
-              Open Dashboard →
+          <div className="hero-actions">
+            <Link href="/dashboard" className="btn">
+              Open dashboard
             </Link>
-            <a href="#features" className="btn btn--ghost">
-              How it works
-            </a>
+            <Link href="/attack-lab" className="btn2">
+              Try the attack lab
+            </Link>
           </div>
         </div>
 
-        {/* ── Features ───────────────────────────────────────── */}
-        <div className="features" id="features">
-          <div className="feature glass glass-hover">
-            <span className="feature__icon">🔐</span>
-            <h3 className="feature__title">On-Chain Escrow</h3>
-            <p className="feature__desc">
-              USDC is locked in a program-controlled vault — not the
-              facilitator, not the seller. Three states only: Locked, Released,
-              Refunded.
-            </p>
+        {/* ── 5-Step Process Flow ────────────────────────────── */}
+        <div className="steps-grid">
+          <div className="card step-card">
+            <div className="mono step-number">1</div>
+            <div className="step-title">Request</div>
+            <div className="mut step-desc">
+              Buyer hits a paid resource and gets a 402 with the price.
+            </div>
           </div>
 
-          <div className="feature glass glass-hover">
-            <span className="feature__icon">⛽</span>
-            <h3 className="feature__title">Zero SOL Needed</h3>
-            <p className="feature__desc">
-              A dedicated fee-payer covers transaction fees. Buyers and agents
-              only need USDC — no SOL in their wallet required.
-            </p>
+          <div className="card step-card">
+            <div className="mono step-number">2</div>
+            <div className="step-title">Lock</div>
+            <div className="mut step-desc">
+              Buyer&apos;s USDC is locked in an on-chain escrow. No SOL needed.
+            </div>
           </div>
 
-          <div className="feature glass glass-hover">
-            <span className="feature__icon">🛡️</span>
-            <h3 className="feature__title">7-Check Verification</h3>
-            <p className="feature__desc">
-              Every payment goes through 7 independent checks: program
-              allowlist, amounts, replay protection, timeout bounds, and more.
-            </p>
+          <div className="card step-card">
+            <div className="mono step-number">3</div>
+            <div className="step-title">Verify</div>
+            <div className="mut step-desc">
+              GHOSTRAIL checks every instruction before anything moves.
+            </div>
           </div>
 
-          <div className="feature glass glass-hover">
-            <span className="feature__icon">↩️</span>
-            <h3 className="feature__title">Automatic Refunds</h3>
-            <p className="feature__desc">
-              If the API fails or times out, the buyer reclaims funds
-              automatically. No dispute process, no middleman.
-            </p>
+          <div className="card step-card">
+            <div className="mono step-number">4</div>
+            <div className="step-title">Deliver</div>
+            <div className="mut step-desc">
+              Seller returns the resource and confirms delivery.
+            </div>
           </div>
 
-          <div className="feature glass glass-hover">
-            <span className="feature__icon">🤖</span>
-            <h3 className="feature__title">Agent-First</h3>
-            <p className="feature__desc">
-              Built for AI agents using the x402 protocol. Standard HTTP 402 +
-              payment headers — any x402 client works out of the box.
-            </p>
-          </div>
-
-          <div className="feature glass glass-hover">
-            <span className="feature__icon">📊</span>
-            <h3 className="feature__title">Live Dashboard</h3>
-            <p className="feature__desc">
-              Monitor active escrows, payment history, verification logs, and
-              wallet balances in real time.
-            </p>
+          <div className="card step-card">
+            <div className="mono step-number">5</div>
+            <div className="step-title">Release or refund</div>
+            <div className="mut step-desc">
+              Escrow pays the seller, or returns the funds to the buyer.
+            </div>
           </div>
         </div>
-      </section>
-    </>
+
+        {/* ── Facilitator Online Status Banner ──────────────── */}
+        <div className="card status-card">
+          <div>
+            <div className="ok status-indicator">Facilitator online</div>
+            <div className="mut mono status-details">
+              network solana:devnet &nbsp; fee payer 7xKp...3mQ2
+            </div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div className="balance-amount">1.84 SOL</div>
+            <div className="mut balance-label">fee-payer balance</div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
+
