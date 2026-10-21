@@ -87,7 +87,7 @@ export async function releaseEscrow(
     await sendAndConfirmTransaction(connection, tx, [facilitatorKeypair]);
 
     // Update the database record
-    updatePaymentByEscrow(escrowAddress, {
+    await updatePaymentByEscrow(escrowAddress, {
       escrowState: EscrowState.Released,
       settledAt: new Date().toISOString(),
     });
@@ -147,7 +147,7 @@ export async function refundEscrow(
     await sendAndConfirmTransaction(connection, tx, [facilitatorKeypair]);
 
     // Update the database record
-    updatePaymentByEscrow(escrowAddress, {
+    await updatePaymentByEscrow(escrowAddress, {
       escrowState: EscrowState.Refunded,
       settledAt: new Date().toISOString(),
     });

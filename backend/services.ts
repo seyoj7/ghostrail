@@ -6,8 +6,8 @@ import { addRegisteredService, getRegisteredServices } from "./db";
 const MAX_U64 = BigInt("18446744073709551615");
 const USDC_DECIMALS = 6;
 
-export function listServices(): Response {
-  return Response.json(getRegisteredServices());
+export async function listServices(): Promise<Response> {
+  return Response.json(await getRegisteredServices());
 }
 
 export async function registerService(request: Request): Promise<Response> {
@@ -72,7 +72,7 @@ export async function registerService(request: Request): Promise<Response> {
     return Response.json({ error: "Price is outside the supported range" }, { status: 400 });
   }
 
-  const service = addRegisteredService({
+  const service = await addRegisteredService({
     name,
     endpointUrl: endpoint.toString(),
     sellerWallet: new PublicKey(sellerWallet).toBase58(),

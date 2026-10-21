@@ -9,6 +9,9 @@ description = "GHOSTRAIL devnet USDC escrow program"
 edition = "2021"
 autobins = false
 
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }
+
 [lib]
 crate-type = ["cdylib", "lib"]
 name = "escrow"

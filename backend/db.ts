@@ -1,15 +1,77 @@
-import "server-only";
+import 'server-only';
 
-import { readFileSync, writeFileSync, existsSync } from "fs";
-import { join } from "path";
+import { Pool, type PoolClient } from 'pg';
 
-// ── JSON file-based database ────────────────────────────────────────
-// Stores seen signatures (replay protection) and payment records.
-// Good enough for devnet — swap for a real DB in production.
+const databaseUrl = process.env.DATABASE_URL;
 
-const DB_PATH = join(process.cwd(), "data", "db.json");
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL is required');
+}
 
-interface PaymentRecordRow {
+const globalForDb = globalThis as unknown as {
+  pool: Pool | undefined;
+  databaseReady: Promise<void> | undefined;
+};
+
+export const pool =
+  globalForDb.pool ??
+  new Pool({
+    connectionString: databaseUrl,
+  });
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForDb.pool = pool;
+}
+
+const schemaSql = `
+CREATE TABLE IF NOT EXISTS seen_signatures (
+  signature VARCHAR(128) PRIMARY KEY,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS payment_records (
+  id UUID PRIMARY KEY,
+  signature VARCHAR(128) NOT NULL,
+  buyer VARCHAR(64) NOT NULL,
+  seller VARCHAR(64) NOT NULL,
+  amount VARCHAR(78) NOT NULL,
+  mint VARCHAR(64) NOT NULL,
+  escrow_address VARCHAR(64),
+  escrow_state VARCHAR(32),
+  accepted BOOLEAN NOT NULL,
+  rejection_reason VARCHAR(64),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  settled_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS payment_records_signature_idx
+  ON payment_records (signature);
+CREATE INDEX IF NOT EXISTS payment_records_escrow_address_idx
+  ON payment_records (escrow_address);
+CREATE INDEX IF NOT EXISTS payment_records_created_at_idx
+  ON payment_records (created_at DESC);
+
+CREATE TABLE IF NOT EXISTS registered_services (
+  id UUID PRIMARY KEY,
+  name VARCHAR(80) NOT NULL,
+  endpoint_url VARCHAR(2048) NOT NULL,
+  seller_wallet VARCHAR(64) NOT NULL,
+  price_usdc VARCHAR(80) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS registered_services_created_at_idx
+  ON registered_services (created_at DESC);
+`;
+
+async function ensureDatabase(): Promise<void> {
+  globalForDb.databaseReady ??= (async () => {
+    await pool.query(schemaSql);
+  })();
+
+  await globalForDb.databaseReady;
+}
+
+export interface PaymentRecordRow {
   id: string;
   signature: string;
   buyer: string;
@@ -24,6 +86,21 @@ interface PaymentRecordRow {
   settledAt: string | null;
 }
 
+interface PaymentRecordDbRow {
+  id: string;
+  signature: string;
+  buyer: string;
+  seller: string;
+  amount: string;
+  mint: string;
+  escrow_address: string | null;
+  escrow_state: string | null;
+  accepted: boolean;
+  rejection_reason: string | null;
+  created_at: Date | string;
+  settled_at: Date | string | null;
+}
+
 export interface RegisteredService {
   id: string;
   name: string;
@@ -33,112 +110,212 @@ export interface RegisteredService {
   createdAt: string;
 }
 
-interface Database {
-  seenSignatures: Record<string, string>; // signature → ISO timestamp
-  paymentRecords: PaymentRecordRow[];
-  registeredServices: RegisteredService[];
+interface RegisteredServiceDbRow {
+  id: string;
+  name: string;
+  endpoint_url: string;
+  seller_wallet: string;
+  price_usdc: string;
+  created_at: Date | string;
 }
 
-function loadDb(): Database {
-  if (!existsSync(DB_PATH)) {
-    return { seenSignatures: {}, paymentRecords: [], registeredServices: [] };
-  }
+type PaymentRecordInput = Omit<
+  PaymentRecordRow,
+  'id' | 'createdAt' | 'settledAt'
+>;
+
+function toIso(value: Date | string | null): string | null {
+  return value === null ? null : new Date(value).toISOString();
+}
+
+function mapPaymentRecord(row: PaymentRecordDbRow): PaymentRecordRow {
+  return {
+    id: row.id,
+    signature: row.signature,
+    buyer: row.buyer,
+    seller: row.seller,
+    amount: row.amount,
+    mint: row.mint,
+    escrowAddress: row.escrow_address,
+    escrowState: row.escrow_state,
+    accepted: row.accepted,
+    rejectionReason: row.rejection_reason,
+    createdAt: toIso(row.created_at) as string,
+    settledAt: toIso(row.settled_at),
+  };
+}
+
+function mapRegisteredService(row: RegisteredServiceDbRow): RegisteredService {
+  return {
+    id: row.id,
+    name: row.name,
+    endpointUrl: row.endpoint_url,
+    sellerWallet: row.seller_wallet,
+    priceUsdc: row.price_usdc,
+    createdAt: toIso(row.created_at) as string,
+  };
+}
+
+async function insertPaymentRecord(
+  client: PoolClient,
+  record: PaymentRecordInput
+): Promise<void> {
+  await client.query(
+    'INSERT INTO payment_records (id, signature, buyer, seller, amount, mint, escrow_address, escrow_state, accepted, rejection_reason) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+    [
+      crypto.randomUUID(),
+      record.signature,
+      record.buyer,
+      record.seller,
+      record.amount,
+      record.mint,
+      record.escrowAddress,
+      record.escrowState,
+      record.accepted,
+      record.rejectionReason,
+    ]
+  );
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === '23505'
+  );
+}
+
+/** Atomically claim a signature and store its accepted payment record. */
+export async function recordAcceptedPayment(
+  record: PaymentRecordInput
+): Promise<boolean> {
+  await ensureDatabase();
+  const client = await pool.connect();
+
   try {
-    const parsed = JSON.parse(readFileSync(DB_PATH, "utf-8"));
-    return {
-      seenSignatures: parsed.seenSignatures ?? {},
-      paymentRecords: parsed.paymentRecords ?? [],
-      registeredServices: parsed.registeredServices ?? [],
-    };
-  } catch {
-    return { seenSignatures: {}, paymentRecords: [], registeredServices: [] };
+    await client.query('BEGIN');
+    await client.query(
+      'INSERT INTO seen_signatures (signature) VALUES ($1)',
+      [record.signature]
+    );
+    await insertPaymentRecord(client, record);
+    await client.query('COMMIT');
+    return true;
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    if (isUniqueViolation(error)) {
+      return false;
+    }
+    throw error;
+  } finally {
+    client.release();
   }
 }
 
-function saveDb(db: Database): void {
-  // Ensure the data/ directory exists
-  const dir = join(process.cwd(), "data");
-  if (!existsSync(dir)) {
-    const { mkdirSync } = require("fs");
-    mkdirSync(dir, { recursive: true });
-  }
-  writeFileSync(DB_PATH, JSON.stringify(db, null, 2), "utf-8");
+/** Insert a payment record, including rejected attempts. */
+export async function addPaymentRecord(
+  record: PaymentRecordInput
+): Promise<void> {
+  await ensureDatabase();
+  await pool.query(
+    'INSERT INTO payment_records (id, signature, buyer, seller, amount, mint, escrow_address, escrow_state, accepted, rejection_reason) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+    [
+      crypto.randomUUID(),
+      record.signature,
+      record.buyer,
+      record.seller,
+      record.amount,
+      record.mint,
+      record.escrowAddress,
+      record.escrowState,
+      record.accepted,
+      record.rejectionReason,
+    ]
+  );
 }
 
-// ── Public API (mirrors what Prisma was doing) ──────────────────────
-
-/** Check if a signature has already been accepted. */
-export function hasSignature(signature: string): boolean {
-  const db = loadDb();
-  return signature in db.seenSignatures;
-}
-
-/** Mark a signature as seen (replay protection). */
-export function addSignature(signature: string): void {
-  const db = loadDb();
-  db.seenSignatures[signature] = new Date().toISOString();
-  saveDb(db);
-}
-
-/** Insert a payment record. */
-export function addPaymentRecord(record: Omit<PaymentRecordRow, "id" | "createdAt" | "settledAt">): void {
-  const db = loadDb();
-  db.paymentRecords.push({
-    ...record,
-    id: crypto.randomUUID(),
-    createdAt: new Date().toISOString(),
-    settledAt: null,
-  });
-  saveDb(db);
-}
-
-/** Find a payment record by signature. */
-export function findPaymentBySignature(signature: string): PaymentRecordRow | undefined {
-  const db = loadDb();
-  return db.paymentRecords
-    .filter((r) => r.signature === signature)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+/** Find the newest payment record by signature. */
+export async function findPaymentBySignature(
+  signature: string
+): Promise<PaymentRecordRow | undefined> {
+  await ensureDatabase();
+  const result = await pool.query<PaymentRecordDbRow>(
+    'SELECT id, signature, buyer, seller, amount, mint, escrow_address, escrow_state, accepted, rejection_reason, created_at, settled_at FROM payment_records WHERE signature = $1 ORDER BY created_at DESC LIMIT 1',
+    [signature]
+  );
+  const row = result.rows[0];
+  return row ? mapPaymentRecord(row) : undefined;
 }
 
 /** Update payment records matching an escrow address. */
-export function updatePaymentByEscrow(
+export async function updatePaymentByEscrow(
   escrowAddress: string,
   update: { escrowState?: string; settledAt?: string }
-): void {
-  const db = loadDb();
-  for (const record of db.paymentRecords) {
-    if (record.escrowAddress === escrowAddress) {
-      if (update.escrowState) record.escrowState = update.escrowState;
-      if (update.settledAt) record.settledAt = update.settledAt;
-    }
+): Promise<void> {
+  await ensureDatabase();
+  const assignments: string[] = [];
+  const values: unknown[] = [];
+
+  if (update.escrowState !== undefined) {
+    values.push(update.escrowState);
+    assignments.push('escrow_state = $' + values.length);
   }
-  saveDb(db);
+
+  if (update.settledAt !== undefined) {
+    values.push(update.settledAt);
+    assignments.push('settled_at = $' + values.length);
+  }
+
+  if (assignments.length === 0) {
+    return;
+  }
+
+  values.push(escrowAddress);
+  await pool.query(
+    'UPDATE payment_records SET ' +
+    assignments.join(', ') +
+    ' WHERE escrow_address = $' +
+    values.length,
+    values
+  );
 }
 
 /** Get recent payment records. */
-export function getRecentPayments(limit = 50): PaymentRecordRow[] {
-  const db = loadDb();
-  return db.paymentRecords
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, limit);
+export async function getRecentPayments(
+  limit = 50
+): Promise<PaymentRecordRow[]> {
+  await ensureDatabase();
+  const result = await pool.query<PaymentRecordDbRow>(
+    'SELECT id, signature, buyer, seller, amount, mint, escrow_address, escrow_state, accepted, rejection_reason, created_at, settled_at FROM payment_records ORDER BY created_at DESC LIMIT $1',
+    [limit]
+  );
+  return result.rows.map(mapPaymentRecord);
 }
 
 /** Register a seller's public service endpoint. */
-export function addRegisteredService(
-  service: Omit<RegisteredService, "id" | "createdAt">
-): RegisteredService {
-  const db = loadDb();
-  const registered: RegisteredService = {
-    ...service,
-    id: crypto.randomUUID(),
-    createdAt: new Date().toISOString(),
-  };
-  db.registeredServices.unshift(registered);
-  saveDb(db);
-  return registered;
+export async function addRegisteredService(
+  service: Omit<RegisteredService, 'id' | 'createdAt'>
+): Promise<RegisteredService> {
+  await ensureDatabase();
+  const result = await pool.query<RegisteredServiceDbRow>(
+    'INSERT INTO registered_services (id, name, endpoint_url, seller_wallet, price_usdc) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, endpoint_url, seller_wallet, price_usdc, created_at',
+    [
+      crypto.randomUUID(),
+      service.name,
+      service.endpointUrl,
+      service.sellerWallet,
+      service.priceUsdc,
+    ]
+  );
+  return mapRegisteredService(result.rows[0]);
 }
 
 /** List seller service registrations. */
-export function getRegisteredServices(): RegisteredService[] {
-  return loadDb().registeredServices;
+export async function getRegisteredServices(): Promise<RegisteredService[]> {
+  await ensureDatabase();
+  const result = await pool.query<RegisteredServiceDbRow>(
+    'SELECT id, name, endpoint_url, seller_wallet, price_usdc, created_at FROM registered_services ORDER BY created_at DESC'
+  );
+  return result.rows.map(mapRegisteredService);
 }

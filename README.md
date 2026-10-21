@@ -12,14 +12,17 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to view the application.
 
+Set `DATABASE_URL` in `.env` to a PostgreSQL connection string. The application
+uses `pg` and initializes its PostgreSQL tables automatically on the first
+database request.
+
 ## Seller service registry
 
 Sellers can register an existing service endpoint, seller wallet, and devnet
 USDC price at `/services`. Registrations are listed as unverified; this page
 stores the URL but does not call or proxy the seller API or verify ownership.
-The facilitator stores registrations in `data/db.json` alongside devnet payment
-records, so use persistent shared storage before running multiple instances or
-deploying to an ephemeral serverless environment.
+The facilitator stores registrations, payment records, and accepted signatures
+in PostgreSQL. The local JSON database is no longer used.
 
 The seller integration calls `POST /api` to check a buyer-signed transaction.
 That check does not submit the transaction or confirm on-chain settlement.

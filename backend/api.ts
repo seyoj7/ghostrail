@@ -66,7 +66,7 @@ export async function handleStatusGet(request: Request): Promise<Response> {
     const escrowAddress = searchParams.get("escrowAddress");
 
     if (signature) {
-      const record = findPaymentBySignature(signature);
+      const record = await findPaymentBySignature(signature);
 
       if (!record) {
         return Response.json(
@@ -91,7 +91,7 @@ export async function handleStatusGet(request: Request): Promise<Response> {
       return Response.json(escrow);
     }
 
-    return Response.json(getRecentPayments(50));
+    return Response.json(await getRecentPayments(50));
   } catch (err) {
     const message = err instanceof Error ? err.message : "Internal error";
     return Response.json({ error: message }, { status: 500 });

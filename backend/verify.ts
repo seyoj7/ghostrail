@@ -7,7 +7,7 @@ import {
   Keypair,
 } from "@solana/web3.js";
 import bs58 from "bs58";
-import { hasSignature, addSignature, addPaymentRecord } from "./db";
+import { addPaymentRecord, recordAcceptedPayment } from "./db";
 import { RejectionReason } from "../types/rejection";
 import type { VerifyResult } from "../types/payment";
 
@@ -154,10 +154,6 @@ export async function verifyPayment(
 
   // ── 6. Replay protection ─────────────────────────────────────────
 
-  if (hasSignature(signature)) {
-    return reject(RejectionReason.ReplayedSignature, signature, expectedSeller, expectedAmount, expectedMint);
-  }
-
   // ── 7. Verify escrow exists on-chain and is funded ────────────────
 
   const escrowAddress = lockIx.keys[4]?.pubkey;
@@ -171,8 +167,7 @@ export async function verifyPayment(
 
   // ── All checks passed — accept ────────────────────────────────────
 
-  addSignature(signature);
-  addPaymentRecord({
+  const recorded = await recordAcceptedPayment({
     signature,
     buyer: buyerKey.toBase58(),
     seller: expectedSeller,
@@ -184,21 +179,25 @@ export async function verifyPayment(
     rejectionReason: null,
   });
 
+  if (!recorded) {
+    return reject(RejectionReason.ReplayedSignature, signature, expectedSeller, expectedAmount, expectedMint);
+  }
+
   return { accepted: true, signature };
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
-function reject(
+async function reject(
   reason: RejectionReason,
   signature: string,
   seller: string,
   amount: string,
   mint: string
-): VerifyResult {
+): Promise<VerifyResult> {
   // Best-effort: record the rejection.
   try {
-    addPaymentRecord({
+    await addPaymentRecord({
       signature: signature || "unknown",
       buyer: "unknown",
       seller,
