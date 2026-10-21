@@ -1,66 +1,214 @@
 {
-  "address": "5x5nxgjD4f4TpBfq7oxMfEJQq22rHANJuzK9xndvLEwf",
+  "address": "8Fiwu4KaRzR88wwEUQbfnAdktDaWUtCQMhQKKHZLbVcw",
   "metadata": {
     "name": "escrow",
     "version": "0.1.0",
     "spec": "0.1.0",
-    "description": "On-chain escrow for x402 payments on Solana devnet"
+    "description": "GHOSTRAIL devnet USDC escrow program"
   },
+  "docs": [
+    "On-chain escrow for x402 payments on Solana devnet.",
+    "",
+    "Three states only: Locked -> Released, or Locked -> Refunded.",
+    "No other transitions are allowed.",
+    "",
+    "The escrow PDA controls a vault token account that holds locked USDC.",
+    "The facilitator and fee payer can never take escrowed funds.",
+    "",
+    "UNAUDITED - devnet only."
+  ],
   "instructions": [
     {
       "name": "lock",
-      "discriminator": [21, 19, 235, 209, 10, 36, 31, 147],
+      "docs": [
+        "Lock USDC into the escrow vault.",
+        "",
+        "- `escrow_id`: unique identifier (allows multiple escrows per buyer).",
+        "- `amount`: exact token amount to lock (must be > 0).",
+        "- `timeout`: unix timestamp after which the buyer can refund."
+      ],
+      "discriminator": [
+        21,
+        19,
+        208,
+        43,
+        237,
+        62,
+        255,
+        87
+      ],
       "accounts": [
-        { "name": "buyer", "signer": true },
-        { "name": "payer", "writable": true, "signer": true },
-        { "name": "seller" },
-        { "name": "mint" },
+        {
+          "name": "buyer",
+          "docs": [
+            "Buyer signs to authorize the USDC transfer."
+          ],
+          "signer": true
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "Pays SOL rent for the escrow and vault accounts."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "seller"
+        },
+        {
+          "name": "mint",
+          "docs": [
+            "Token mint (for example, devnet USDC)."
+          ]
+        },
         {
           "name": "escrow",
+          "docs": [
+            "Escrow state PDA. Seeds: [\"escrow\", buyer, escrow_id]."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
-              { "kind": "const", "value": [101, 115, 99, 114, 111, 119] },
-              { "kind": "account", "path": "buyer" },
-              { "kind": "arg", "path": "escrow_id" }
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "buyer"
+              },
+              {
+                "kind": "arg",
+                "path": "escrow_id"
+              }
             ]
           }
         },
-        { "name": "buyer_token", "writable": true },
+        {
+          "name": "buyer_token",
+          "docs": [
+            "Buyer's USDC token account."
+          ],
+          "writable": true
+        },
         {
           "name": "vault",
+          "docs": [
+            "Vault PDA holding locked USDC."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
-              { "kind": "const", "value": [118, 97, 117, 108, 116] },
-              { "kind": "account", "path": "escrow" }
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow"
+              }
             ]
           }
         },
-        { "name": "system_program", "address": "11111111111111111111111111111111" },
-        { "name": "token_program" }
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program"
+        }
       ],
       "args": [
-        { "name": "escrow_id", "type": "u64" },
-        { "name": "amount", "type": "u64" },
-        { "name": "timeout", "type": "i64" }
+        {
+          "name": "escrow_id",
+          "type": "u64"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "timeout",
+          "type": "i64"
+        }
       ]
     },
     {
-      "name": "release",
-      "discriminator": [254, 46, 47, 59, 237, 0, 165, 221],
+      "name": "refund",
+      "docs": [
+        "Refund escrowed funds to the buyer after the timeout."
+      ],
+      "discriminator": [
+        2,
+        96,
+        183,
+        251,
+        63,
+        208,
+        46,
+        46
+      ],
       "accounts": [
-        { "name": "buyer", "writable": true },
-        { "name": "seller", "signer": true },
-        { "name": "mint" },
+        {
+          "name": "buyer",
+          "docs": [
+            "Buyer signs and receives the refund and account rent."
+          ],
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "escrow"
+          ]
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "escrow"
+          ]
+        },
         {
           "name": "escrow",
+          "docs": [
+            "Escrow state, closed after refund; rent is returned to buyer."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
-              { "kind": "const", "value": [101, 115, 99, 114, 111, 119] },
-              { "kind": "account", "path": "escrow.buyer" },
-              { "kind": "account", "path": "escrow.escrow_id" }
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.buyer",
+                "account": "Escrow"
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "Escrow"
+              }
             ]
           }
         },
@@ -69,30 +217,101 @@
           "writable": true,
           "pda": {
             "seeds": [
-              { "kind": "const", "value": [118, 97, 117, 108, 116] },
-              { "kind": "account", "path": "escrow" }
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow"
+              }
             ]
           }
         },
-        { "name": "seller_token", "writable": true },
-        { "name": "token_program" }
+        {
+          "name": "buyer_token",
+          "writable": true
+        },
+        {
+          "name": "token_program"
+        }
       ],
       "args": []
     },
     {
-      "name": "refund",
-      "discriminator": [2, 96, 183, 251, 63, 208, 46, 46],
+      "name": "release",
+      "docs": [
+        "Release escrowed funds to the seller after the seller confirms delivery."
+      ],
+      "discriminator": [
+        253,
+        249,
+        15,
+        206,
+        28,
+        127,
+        193,
+        241
+      ],
       "accounts": [
-        { "name": "buyer", "writable": true, "signer": true },
-        { "name": "mint" },
+        {
+          "name": "buyer",
+          "writable": true,
+          "relations": [
+            "escrow"
+          ]
+        },
+        {
+          "name": "seller",
+          "docs": [
+            "Seller signs to confirm delivery."
+          ],
+          "signer": true,
+          "relations": [
+            "escrow"
+          ]
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "escrow"
+          ]
+        },
         {
           "name": "escrow",
+          "docs": [
+            "Escrow state, closed after release; rent is returned to buyer."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
-              { "kind": "const", "value": [101, 115, 99, 114, 111, 119] },
-              { "kind": "account", "path": "escrow.buyer" },
-              { "kind": "account", "path": "escrow.escrow_id" }
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.buyer",
+                "account": "Escrow"
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "Escrow"
+              }
             ]
           }
         },
@@ -101,13 +320,30 @@
           "writable": true,
           "pda": {
             "seeds": [
-              { "kind": "const", "value": [118, 97, 117, 108, 116] },
-              { "kind": "account", "path": "escrow" }
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow"
+              }
             ]
           }
         },
-        { "name": "buyer_token", "writable": true },
-        { "name": "token_program" }
+        {
+          "name": "seller_token",
+          "writable": true
+        },
+        {
+          "name": "token_program"
+        }
       ],
       "args": []
     }
@@ -115,14 +351,39 @@
   "accounts": [
     {
       "name": "Escrow",
-      "discriminator": [31, 213, 123, 187, 186, 22, 218, 155]
+      "discriminator": [
+        31,
+        213,
+        123,
+        187,
+        186,
+        22,
+        218,
+        155
+      ]
     }
   ],
   "errors": [
-    { "code": 6000, "name": "ZeroAmount", "msg": "Amount must be greater than zero" },
-    { "code": 6001, "name": "TimeoutInPast", "msg": "Timeout must be in the future" },
-    { "code": 6002, "name": "NotLocked", "msg": "Escrow is not in Locked state" },
-    { "code": 6003, "name": "TimeoutNotReached", "msg": "Timeout has not been reached yet" }
+    {
+      "code": 6000,
+      "name": "ZeroAmount",
+      "msg": "Amount must be greater than zero"
+    },
+    {
+      "code": 6001,
+      "name": "TimeoutInPast",
+      "msg": "Timeout must be in the future"
+    },
+    {
+      "code": 6002,
+      "name": "NotLocked",
+      "msg": "Escrow is not in Locked state"
+    },
+    {
+      "code": 6003,
+      "name": "TimeoutNotReached",
+      "msg": "Timeout has not been reached yet"
+    }
   ],
   "types": [
     {
@@ -130,14 +391,42 @@
       "type": {
         "kind": "struct",
         "fields": [
-          { "name": "buyer", "type": "pubkey" },
-          { "name": "seller", "type": "pubkey" },
-          { "name": "mint", "type": "pubkey" },
-          { "name": "amount", "type": "u64" },
-          { "name": "timeout", "type": "i64" },
-          { "name": "escrow_id", "type": "u64" },
-          { "name": "state", "type": { "defined": { "name": "EscrowState" } } },
-          { "name": "bump", "type": "u8" }
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "seller",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "timeout",
+            "type": "i64"
+          },
+          {
+            "name": "escrow_id",
+            "type": "u64"
+          },
+          {
+            "name": "state",
+            "type": {
+              "defined": {
+                "name": "EscrowState"
+              }
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
         ]
       }
     },
@@ -146,9 +435,15 @@
       "type": {
         "kind": "enum",
         "variants": [
-          { "name": "Locked" },
-          { "name": "Released" },
-          { "name": "Refunded" }
+          {
+            "name": "Locked"
+          },
+          {
+            "name": "Released"
+          },
+          {
+            "name": "Refunded"
+          }
         ]
       }
     }

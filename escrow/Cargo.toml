@@ -2,6 +2,9 @@
 members = ["."]
 resolver = "2"
 
+[profile.release]
+overflow-checks = true
+
 [package]
 name = "escrow"
 version = "0.1.0"
@@ -15,7 +18,7 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"
 [lib]
 crate-type = ["cdylib", "lib"]
 name = "escrow"
-path = "src/main.rs"
+path = "src/lib.rs"
 
 [features]
 default = []

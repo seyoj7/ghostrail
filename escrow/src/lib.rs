@@ -5,7 +5,7 @@ use anchor_spl::token_interface::{
 
 // Generate `target/deploy/escrow-keypair.json`, then run `anchor keys sync`
 // to set this ID and the corresponding entry in Anchor.toml.
-declare_id!("5x5nxgjD4f4TpBfq7oxMfEJQq22rHANJuzK9xndvLEwf");
+declare_id!("8Fiwu4KaRzR88wwEUQbfnAdktDaWUtCQMhQKKHZLbVcw");
 
 /// On-chain escrow for x402 payments on Solana devnet.
 ///
