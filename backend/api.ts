@@ -10,9 +10,15 @@ export async function handlePaymentPost(request: Request): Promise<Response> {
   try {
     const body: unknown = await request.json();
     if (!body || typeof body !== "object" || Array.isArray(body)) {
-      return Response.json({ error: "Request body must be a JSON object" }, { status: 400 });
+      return Response.json(
+        { error: "Request body must be a JSON object" },
+        { status: 400 },
+      );
     }
-    const { transaction, seller, amount, mint } = body as Record<string, unknown>;
+    const { transaction, seller, amount, mint } = body as Record<
+      string,
+      unknown
+    >;
     if (
       typeof transaction !== "string" ||
       typeof seller !== "string" ||
@@ -25,7 +31,7 @@ export async function handlePaymentPost(request: Request): Promise<Response> {
     ) {
       return Response.json(
         { error: "Missing required fields: transaction, seller, amount, mint" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -42,9 +48,15 @@ export async function handleSettlementPut(request: Request): Promise<Response> {
   try {
     const body: unknown = await request.json();
     if (!body || typeof body !== "object" || Array.isArray(body)) {
-      return Response.json({ error: "Request body must be a JSON object" }, { status: 400 });
+      return Response.json(
+        { error: "Request body must be a JSON object" },
+        { status: 400 },
+      );
     }
-    const { escrowAddress, action, transaction } = body as Record<string, unknown>;
+    const { escrowAddress, action, transaction } = body as Record<
+      string,
+      unknown
+    >;
 
     if (
       typeof escrowAddress !== "string" ||
@@ -55,15 +67,17 @@ export async function handleSettlementPut(request: Request): Promise<Response> {
       !transaction
     ) {
       return Response.json(
-        { error: "Missing required fields: escrowAddress, action, transaction" },
-        { status: 400 }
+        {
+          error: "Missing required fields: escrowAddress, action, transaction",
+        },
+        { status: 400 },
       );
     }
 
     if (action !== "release" && action !== "refund") {
       return Response.json(
         { error: "action must be 'release' or 'refund'" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -89,7 +103,10 @@ export async function handleStatusGet(request: Request): Promise<Response> {
     if (signature) {
       const record = await findPaymentBySignature(signature);
       if (!record) {
-        return Response.json({ error: "Payment record not found" }, { status: 404 });
+        return Response.json(
+          { error: "Payment record not found" },
+          { status: 404 },
+        );
       }
       return Response.json(record);
     }
@@ -97,7 +114,10 @@ export async function handleStatusGet(request: Request): Promise<Response> {
     if (escrowAddress) {
       const escrow = await fetchEscrow(escrowAddress);
       if (!escrow) {
-        return Response.json({ error: "Escrow account not found" }, { status: 404 });
+        return Response.json(
+          { error: "Escrow account not found" },
+          { status: 404 },
+        );
       }
       return Response.json(escrow);
     }

@@ -7,16 +7,17 @@ import {
   Transaction,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { getOrCreateAssociatedTokenAccount, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import {
+  getOrCreateAssociatedTokenAccount,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
 import bs58 from "bs58";
 import { getAutoRefundCandidates } from "./db";
 import { fetchEscrow } from "./escrow";
 import { refundEscrow } from "./settlement";
 import { EscrowState } from "../types/escrow";
 
-const REFUND_DISCRIMINATOR = Buffer.from([
-  2, 96, 183, 251, 63, 208, 46, 46,
-]);
+const REFUND_DISCRIMINATOR = Buffer.from([2, 96, 183, 251, 63, 208, 46, 46]);
 const workerState = globalThis as unknown as {
   ghostrailAutomaticRefundWorkerStarted?: boolean;
 };
@@ -31,7 +32,9 @@ export function startAutomaticRefundWorker(): void {
     return;
   }
   if (!process.env.BUYER_PRIVATE_KEY) {
-    console.error("Automatic refunds are enabled but BUYER_PRIVATE_KEY is missing.");
+    console.error(
+      "Automatic refunds are enabled but BUYER_PRIVATE_KEY is missing.",
+    );
     return;
   }
 
@@ -130,7 +133,9 @@ async function submitAutomaticRefund(
   }
 
   const escrowPubkey = new PublicKey(escrowAddress);
-  const facilitator = loadKeypair(process.env.FACILITATOR_PRIVATE_KEY!).publicKey;
+  const facilitator = loadKeypair(
+    process.env.FACILITATOR_PRIVATE_KEY!,
+  ).publicKey;
   const [vault] = PublicKey.findProgramAddressSync(
     [Buffer.from("vault"), escrowPubkey.toBuffer()],
     new PublicKey(process.env.ESCROW_PROGRAM_ID!),
@@ -146,7 +151,11 @@ async function submitAutomaticRefund(
     data: REFUND_DISCRIMINATOR,
     keys: [
       { pubkey: buyer.publicKey, isSigner: true, isWritable: true },
-      { pubkey: new PublicKey(escrow.mint), isSigner: false, isWritable: false },
+      {
+        pubkey: new PublicKey(escrow.mint),
+        isSigner: false,
+        isWritable: false,
+      },
       { pubkey: escrowPubkey, isSigner: false, isWritable: true },
       { pubkey: vault, isSigner: false, isWritable: true },
       { pubkey: buyerToken.address, isSigner: false, isWritable: true },
@@ -155,20 +164,26 @@ async function submitAutomaticRefund(
   });
   const transaction = new Transaction().add(instruction);
   transaction.feePayer = facilitator;
-  transaction.recentBlockhash = (await connection.getLatestBlockhash("confirmed")).blockhash;
+  transaction.recentBlockhash = (
+    await connection.getLatestBlockhash("confirmed")
+  ).blockhash;
   transaction.partialSign(buyer);
 
   const result = await refundEscrow(
     escrowAddress,
-    transaction.serialize({
-      requireAllSignatures: false,
-      verifySignatures: false,
-    }).toString("base64"),
+    transaction
+      .serialize({
+        requireAllSignatures: false,
+        verifySignatures: false,
+      })
+      .toString("base64"),
   );
   if (!result.success) {
     throw new Error(result.error ?? "Refund was rejected");
   }
-  console.log(`Automatic refund submitted for ${escrowAddress}: ${result.signature}`);
+  console.log(
+    `Automatic refund submitted for ${escrowAddress}: ${result.signature}`,
+  );
 }
 
 function loadKeypair(value: string): Keypair {

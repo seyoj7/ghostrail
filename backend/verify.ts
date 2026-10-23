@@ -1,11 +1,6 @@
 import "server-only";
 
-import {
-  Connection,
-  Keypair,
-  PublicKey,
-  Transaction,
-} from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import bs58 from "bs58";
 import { addPaymentRecord, recordAcceptedPayment } from "./db";
 import { RejectionReason } from "../types/rejection";
@@ -14,13 +9,11 @@ import type { VerifyResult } from "../types/payment";
 const ESCROW_PROGRAM_ID = new PublicKey(process.env.ESCROW_PROGRAM_ID!);
 const USDC_MINT = new PublicKey(process.env.USDC_MINT!);
 const FEE_PAYER = Keypair.fromSecretKey(
-  bs58.decode(process.env.FEE_PAYER_PRIVATE_KEY!)
+  bs58.decode(process.env.FEE_PAYER_PRIVATE_KEY!),
 );
 const connection = new Connection(process.env.SOLANA_RPC_URL!, "confirmed");
 
-const LOCK_DISCRIMINATOR = Buffer.from([
-  21, 19, 208, 43, 237, 62, 255, 87,
-]);
+const LOCK_DISCRIMINATOR = Buffer.from([21, 19, 208, 43, 237, 62, 255, 87]);
 const ESCROW_ACCOUNT_DISCRIMINATOR = Buffer.from([
   31, 213, 123, 187, 186, 22, 218, 155,
 ]);
@@ -49,13 +42,19 @@ export async function verifyPayment(
   transactionBase64: string,
   expectedSeller: string,
   expectedAmount: string,
-  expectedMint: string
+  expectedMint: string,
 ): Promise<VerifyResult> {
   let tx: Transaction;
   try {
     tx = Transaction.from(Buffer.from(transactionBase64, "base64"));
   } catch {
-    return reject(RejectionReason.MalformedTransaction, "", expectedSeller, expectedAmount, expectedMint);
+    return reject(
+      RejectionReason.MalformedTransaction,
+      "",
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
 
   let sellerKey: PublicKey;
@@ -66,39 +65,93 @@ export async function verifyPayment(
     mintKey = new PublicKey(expectedMint);
     amountExpected = BigInt(expectedAmount);
   } catch {
-    return reject(RejectionReason.MalformedTransaction, "", expectedSeller, expectedAmount, expectedMint);
+    return reject(
+      RejectionReason.MalformedTransaction,
+      "",
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
 
   const signature = tx.signature ? bs58.encode(tx.signature) : "";
   if (!signature || !tx.feePayer || !tx.recentBlockhash) {
-    return reject(RejectionReason.MalformedTransaction, signature, expectedSeller, expectedAmount, expectedMint);
+    return reject(
+      RejectionReason.MalformedTransaction,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
   if (!tx.verifySignatures(true)) {
-    return reject(RejectionReason.InvalidSignature, signature, expectedSeller, expectedAmount, expectedMint);
+    return reject(
+      RejectionReason.InvalidSignature,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
-  if (amountExpected <= BigInt(0) || amountExpected > BigInt("18446744073709551615")) {
-    return reject(RejectionReason.WrongAmount, signature, expectedSeller, expectedAmount, expectedMint);
+  if (
+    amountExpected <= BigInt(0) ||
+    amountExpected > BigInt("18446744073709551615")
+  ) {
+    return reject(
+      RejectionReason.WrongAmount,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
   if (!mintKey.equals(USDC_MINT)) {
-    return reject(RejectionReason.WrongMint, signature, expectedSeller, expectedAmount, expectedMint);
+    return reject(
+      RejectionReason.WrongMint,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
 
   for (const ix of tx.instructions) {
     if (!ALLOWED_PROGRAMS.has(ix.programId.toBase58())) {
-      return reject(RejectionReason.DisallowedProgram, signature, expectedSeller, expectedAmount, expectedMint);
+      return reject(
+        RejectionReason.DisallowedProgram,
+        signature,
+        expectedSeller,
+        expectedAmount,
+        expectedMint,
+      );
     }
   }
 
   const escrowInstructions = tx.instructions.filter((ix) =>
-    ix.programId.equals(ESCROW_PROGRAM_ID)
+    ix.programId.equals(ESCROW_PROGRAM_ID),
   );
   if (escrowInstructions.length !== 1) {
-    return reject(RejectionReason.MalformedTransaction, signature, expectedSeller, expectedAmount, expectedMint);
+    return reject(
+      RejectionReason.MalformedTransaction,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
 
   const lockIx = escrowInstructions[0];
-  if (lockIx.data.length !== 32 || !lockIx.data.subarray(0, 8).equals(LOCK_DISCRIMINATOR)) {
-    return reject(RejectionReason.MalformedTransaction, signature, expectedSeller, expectedAmount, expectedMint);
+  if (
+    lockIx.data.length !== 32 ||
+    !lockIx.data.subarray(0, 8).equals(LOCK_DISCRIMINATOR)
+  ) {
+    return reject(
+      RejectionReason.MalformedTransaction,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
 
   const expectedAccounts = [
@@ -113,7 +166,13 @@ export async function verifyPayment(
     { signer: false, writable: false },
   ];
   if (lockIx.keys.length !== expectedAccounts.length) {
-    return reject(RejectionReason.MalformedTransaction, signature, expectedSeller, expectedAmount, expectedMint);
+    return reject(
+      RejectionReason.MalformedTransaction,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
 
   // Solana merges duplicate account metas when it serializes a transaction.
@@ -122,11 +181,13 @@ export async function verifyPayment(
   const accountShapeIsValid = lockIx.keys.every((key, index) => {
     const mergedSigner = lockIx.keys.some(
       (candidate, candidateIndex) =>
-        candidate.pubkey.equals(key.pubkey) && expectedAccounts[candidateIndex].signer
+        candidate.pubkey.equals(key.pubkey) &&
+        expectedAccounts[candidateIndex].signer,
     );
     const mergedWritable = lockIx.keys.some(
       (candidate, candidateIndex) =>
-        candidate.pubkey.equals(key.pubkey) && expectedAccounts[candidateIndex].writable
+        candidate.pubkey.equals(key.pubkey) &&
+        expectedAccounts[candidateIndex].writable,
     );
 
     return (
@@ -136,69 +197,153 @@ export async function verifyPayment(
     );
   });
   if (!accountShapeIsValid) {
-    return reject(RejectionReason.MalformedTransaction, signature, expectedSeller, expectedAmount, expectedMint);
+    return reject(
+      RejectionReason.MalformedTransaction,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
 
   const buyerKey = lockIx.keys[0].pubkey;
   const instructionMint = lockIx.keys[3].pubkey;
   if (!instructionMint.equals(mintKey)) {
-    return reject(RejectionReason.WrongMint, signature, expectedSeller, expectedAmount, expectedMint);
+    return reject(
+      RejectionReason.WrongMint,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
   if (!lockIx.keys[2].pubkey.equals(sellerKey)) {
-    return reject(RejectionReason.WrongSeller, signature, expectedSeller, expectedAmount, expectedMint);
+    return reject(
+      RejectionReason.WrongSeller,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
-  if (!tx.signatures.some((entry) => entry.publicKey.equals(buyerKey) && entry.signature)) {
-    return reject(RejectionReason.InvalidSignature, signature, expectedSeller, expectedAmount, expectedMint);
+  if (
+    !tx.signatures.some(
+      (entry) => entry.publicKey.equals(buyerKey) && entry.signature,
+    )
+  ) {
+    return reject(
+      RejectionReason.InvalidSignature,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
 
   const escrowId = lockIx.data.readBigUInt64LE(8);
   const amount = lockIx.data.readBigUInt64LE(16);
   const timeout = lockIx.data.readBigInt64LE(24);
   if (amount !== amountExpected) {
-    return reject(RejectionReason.WrongAmount, signature, expectedSeller, expectedAmount, expectedMint);
+    return reject(
+      RejectionReason.WrongAmount,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
 
   const [expectedEscrow] = PublicKey.findProgramAddressSync(
     [Buffer.from("escrow"), buyerKey.toBuffer(), uint64Bytes(escrowId)],
-    ESCROW_PROGRAM_ID
+    ESCROW_PROGRAM_ID,
   );
   const [expectedVault] = PublicKey.findProgramAddressSync(
     [Buffer.from("vault"), expectedEscrow.toBuffer()],
-    ESCROW_PROGRAM_ID
+    ESCROW_PROGRAM_ID,
   );
-  if (!lockIx.keys[4].pubkey.equals(expectedEscrow) || !lockIx.keys[6].pubkey.equals(expectedVault)) {
-    return reject(RejectionReason.MalformedTransaction, signature, expectedSeller, expectedAmount, expectedMint);
+  if (
+    !lockIx.keys[4].pubkey.equals(expectedEscrow) ||
+    !lockIx.keys[6].pubkey.equals(expectedVault)
+  ) {
+    return reject(
+      RejectionReason.MalformedTransaction,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
 
   const nowSecs = BigInt(Math.floor(Date.now() / 1000));
   const timeoutSecs = timeout - nowSecs;
-  if (timeoutSecs < BigInt(MIN_TIMEOUT_SECS) || timeoutSecs > BigInt(MAX_TIMEOUT_SECS)) {
-    return reject(RejectionReason.InvalidTimeout, signature, expectedSeller, expectedAmount, expectedMint);
+  if (
+    timeoutSecs < BigInt(MIN_TIMEOUT_SECS) ||
+    timeoutSecs > BigInt(MAX_TIMEOUT_SECS)
+  ) {
+    return reject(
+      RejectionReason.InvalidTimeout,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
 
   const feePayerKey = FEE_PAYER.publicKey;
   for (const [index, key] of lockIx.keys.entries()) {
     if (key.pubkey.equals(feePayerKey) && index !== 1) {
-      return reject(RejectionReason.FeePayerIsAuthority, signature, expectedSeller, expectedAmount, expectedMint);
+      return reject(
+        RejectionReason.FeePayerIsAuthority,
+        signature,
+        expectedSeller,
+        expectedAmount,
+        expectedMint,
+      );
     }
   }
   for (const ix of tx.instructions) {
-    if (!ix.programId.equals(ESCROW_PROGRAM_ID) && ix.keys.some((key) => key.pubkey.equals(feePayerKey))) {
-      return reject(RejectionReason.FeePayerIsAuthority, signature, expectedSeller, expectedAmount, expectedMint);
+    if (
+      !ix.programId.equals(ESCROW_PROGRAM_ID) &&
+      ix.keys.some((key) => key.pubkey.equals(feePayerKey))
+    ) {
+      return reject(
+        RejectionReason.FeePayerIsAuthority,
+        signature,
+        expectedSeller,
+        expectedAmount,
+        expectedMint,
+      );
     }
   }
 
   for (const ix of tx.instructions) {
-    if (ix.programId.toBase58() === "ComputeBudget111111111111111111111111111111" && ix.data.length >= 5 && ix.data[0] === 2) {
+    if (
+      ix.programId.toBase58() ===
+        "ComputeBudget111111111111111111111111111111" &&
+      ix.data.length >= 5 &&
+      ix.data[0] === 2
+    ) {
       if (ix.data.readUInt32LE(1) > MAX_COMPUTE_UNITS) {
-        return reject(RejectionReason.ComputeOverBudget, signature, expectedSeller, expectedAmount, expectedMint);
+        return reject(
+          RejectionReason.ComputeOverBudget,
+          signature,
+          expectedSeller,
+          expectedAmount,
+          expectedMint,
+        );
       }
     }
   }
 
   const status = (await connection.getSignatureStatuses([signature])).value[0];
   if (status?.err) {
-    return reject(RejectionReason.TransactionFailed, signature, expectedSeller, expectedAmount, expectedMint);
+    return reject(
+      RejectionReason.TransactionFailed,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
 
   const existingEscrowReason = await validateExistingEscrow(
@@ -207,10 +352,16 @@ export async function verifyPayment(
     sellerKey,
     mintKey,
     escrowId,
-    amount
+    amount,
   );
   if (existingEscrowReason) {
-    return reject(existingEscrowReason, signature, expectedSeller, expectedAmount, expectedMint);
+    return reject(
+      existingEscrowReason,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
 
   const recorded = await recordAcceptedPayment({
@@ -225,7 +376,13 @@ export async function verifyPayment(
     rejectionReason: null,
   });
   if (!recorded) {
-    return reject(RejectionReason.ReplayedSignature, signature, expectedSeller, expectedAmount, expectedMint);
+    return reject(
+      RejectionReason.ReplayedSignature,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
   }
 
   return {
@@ -248,7 +405,7 @@ async function validateExistingEscrow(
   seller: PublicKey,
   mint: PublicKey,
   escrowId: bigint,
-  amount: bigint
+  amount: bigint,
 ): Promise<RejectionReason | null> {
   let accountInfo;
   try {
@@ -259,7 +416,10 @@ async function validateExistingEscrow(
   if (!accountInfo) {
     return null;
   }
-  if (!accountInfo.owner.equals(ESCROW_PROGRAM_ID) || accountInfo.data.length < 130) {
+  if (
+    !accountInfo.owner.equals(ESCROW_PROGRAM_ID) ||
+    accountInfo.data.length < 130
+  ) {
     return RejectionReason.EscrowNotFound;
   }
 
@@ -280,7 +440,7 @@ async function validateExistingEscrow(
 
   const [vault] = PublicKey.findProgramAddressSync(
     [Buffer.from("vault"), escrowAddress.toBuffer()],
-    ESCROW_PROGRAM_ID
+    ESCROW_PROGRAM_ID,
   );
   try {
     const vaultInfo = await connection.getParsedAccountInfo(vault);
@@ -310,7 +470,7 @@ async function reject(
   signature: string,
   seller: string,
   amount: string,
-  mint: string
+  mint: string,
 ): Promise<VerifyResult> {
   try {
     await addPaymentRecord({

@@ -7,13 +7,20 @@ export async function register(): Promise<void> {
     return;
   }
 
-  const required = ["DATABASE_URL", "SOLANA_RPC_URL", "ESCROW_PROGRAM_ID", "FACILITATOR_PRIVATE_KEY", "BUYER_PRIVATE_KEY"];
+  const required = [
+    "DATABASE_URL",
+    "SOLANA_RPC_URL",
+    "ESCROW_PROGRAM_ID",
+    "FACILITATOR_PRIVATE_KEY",
+    "BUYER_PRIVATE_KEY",
+  ];
   const missing = required.filter((name) => !process.env[name]);
   if (missing.length > 0) {
     console.error(`Automatic refunds disabled; missing: ${missing.join(", ")}`);
     return;
   }
 
-  const { startAutomaticRefundWorker } = await import("./backend/refund-worker");
+  const { startAutomaticRefundWorker } =
+    await import("./backend/refund-worker");
   startAutomaticRefundWorker();
 }

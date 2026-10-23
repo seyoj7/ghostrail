@@ -16,13 +16,19 @@ import type { EscrowAccount } from "../types/escrow";
 
 class NodeWallet {
   constructor(readonly payer: Keypair) {}
-  get publicKey() { return this.payer.publicKey; }
-  async signTransaction<T extends Transaction | VersionedTransaction>(tx: T): Promise<T> {
+  get publicKey() {
+    return this.payer.publicKey;
+  }
+  async signTransaction<T extends Transaction | VersionedTransaction>(
+    tx: T,
+  ): Promise<T> {
     if (tx instanceof Transaction) tx.partialSign(this.payer);
     else tx.sign([this.payer]);
     return tx;
   }
-  async signAllTransactions<T extends Transaction | VersionedTransaction>(txs: T[]): Promise<T[]> {
+  async signAllTransactions<T extends Transaction | VersionedTransaction>(
+    txs: T[],
+  ): Promise<T[]> {
     txs.forEach((tx) => {
       if (tx instanceof Transaction) tx.partialSign(this.payer);
       else tx.sign([this.payer]);
@@ -49,20 +55,26 @@ type EscrowAccountNamespace = {
 const ESCROW_PROGRAM_ID = new PublicKey(process.env.ESCROW_PROGRAM_ID!);
 const connection = new Connection(process.env.SOLANA_RPC_URL!, "confirmed");
 const facilitatorKeypair = Keypair.fromSecretKey(
-  bs58.decode(process.env.FACILITATOR_PRIVATE_KEY!)
+  bs58.decode(process.env.FACILITATOR_PRIVATE_KEY!),
 );
-const provider = new AnchorProvider(connection, new NodeWallet(facilitatorKeypair), {
-  commitment: "confirmed",
-});
+const provider = new AnchorProvider(
+  connection,
+  new NodeWallet(facilitatorKeypair),
+  {
+    commitment: "confirmed",
+  },
+);
 const program = new Program(idl as unknown as Idl, provider);
 
 export async function fetchEscrow(
-  escrowAddress: string
+  escrowAddress: string,
 ): Promise<EscrowAccount | null> {
   try {
     const pubkey = new PublicKey(escrowAddress);
     const accounts = program.account as unknown as EscrowAccountNamespace;
-    const account = (await accounts.escrow.fetch(pubkey)) as AnchorEscrowAccount;
+    const account = (await accounts.escrow.fetch(
+      pubkey,
+    )) as AnchorEscrowAccount;
     const stateMap: Record<string, EscrowState> = {
       locked: EscrowState.Locked,
       released: EscrowState.Released,
@@ -84,13 +96,16 @@ export async function fetchEscrow(
   }
 }
 
-export function deriveEscrowAddress(buyer: string, escrowId: bigint): PublicKey {
+export function deriveEscrowAddress(
+  buyer: string,
+  escrowId: bigint,
+): PublicKey {
   const buyerPubkey = new PublicKey(buyer);
   const escrowIdBuffer = Buffer.alloc(8);
   escrowIdBuffer.writeBigUInt64LE(escrowId);
   const [pda] = PublicKey.findProgramAddressSync(
     [Buffer.from("escrow"), buyerPubkey.toBuffer(), escrowIdBuffer],
-    ESCROW_PROGRAM_ID
+    ESCROW_PROGRAM_ID,
   );
   return pda;
 }
@@ -98,7 +113,7 @@ export function deriveEscrowAddress(buyer: string, escrowId: bigint): PublicKey 
 export function deriveVaultAddress(escrowAddress: PublicKey): PublicKey {
   const [pda] = PublicKey.findProgramAddressSync(
     [Buffer.from("vault"), escrowAddress.toBuffer()],
-    ESCROW_PROGRAM_ID
+    ESCROW_PROGRAM_ID,
   );
   return pda;
 }

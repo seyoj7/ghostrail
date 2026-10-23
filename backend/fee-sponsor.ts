@@ -1,34 +1,36 @@
 import "server-only";
 
-import {
-  Connection,
-  Keypair,
-  Transaction,
-} from "@solana/web3.js";
+import { Connection, Keypair, Transaction } from "@solana/web3.js";
 import bs58 from "bs58";
 
 const connection = new Connection(process.env.SOLANA_RPC_URL!, "confirmed");
 const feePayerKeypair = Keypair.fromSecretKey(
-  bs58.decode(process.env.FEE_PAYER_PRIVATE_KEY!)
+  bs58.decode(process.env.FEE_PAYER_PRIVATE_KEY!),
 );
 
 /** Add the fee payer and blockhash before the buyer signs. */
 export async function prepareForSponsorship(
-  serializedTransaction: string
+  serializedTransaction: string,
 ): Promise<string> {
   const tx = Transaction.from(Buffer.from(serializedTransaction, "base64"));
   tx.feePayer = feePayerKeypair.publicKey;
-  tx.recentBlockhash = (await connection.getLatestBlockhash("confirmed")).blockhash;
-  return tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString("base64");
+  tx.recentBlockhash = (
+    await connection.getLatestBlockhash("confirmed")
+  ).blockhash;
+  return tx
+    .serialize({ requireAllSignatures: false, verifySignatures: false })
+    .toString("base64");
 }
 
 /** Submit a prepared transaction without changing its signed message. */
 export async function sponsorAndSubmit(
-  serializedTransaction: string
+  serializedTransaction: string,
 ): Promise<string> {
   const tx = Transaction.from(Buffer.from(serializedTransaction, "base64"));
   if (!tx.feePayer?.equals(feePayerKeypair.publicKey) || !tx.recentBlockhash) {
-    throw new Error("Transaction must be prepared with the configured fee payer before signing");
+    throw new Error(
+      "Transaction must be prepared with the configured fee payer before signing",
+    );
   }
   if (!tx.verifySignatures(false)) {
     throw new Error("Transaction contains an invalid signature");
@@ -43,7 +45,10 @@ export async function sponsorAndSubmit(
     skipPreflight: false,
     preflightCommitment: "confirmed",
   });
-  const confirmation = await connection.confirmTransaction(signature, "confirmed");
+  const confirmation = await connection.confirmTransaction(
+    signature,
+    "confirmed",
+  );
   if (confirmation.value.err) {
     throw new Error("Sponsored transaction failed on-chain");
   }

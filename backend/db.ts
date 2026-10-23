@@ -1,11 +1,11 @@
-import 'server-only';
+import "server-only";
 
-import { Pool, type PoolClient } from 'pg';
+import { Pool, type PoolClient } from "pg";
 
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
-  throw new Error('DATABASE_URL is required');
+  throw new Error("DATABASE_URL is required");
 }
 
 const globalForDb = globalThis as unknown as {
@@ -19,7 +19,7 @@ export const pool =
     connectionString: databaseUrl,
   });
 
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== "production") {
   globalForDb.pool = pool;
 }
 
@@ -121,7 +121,7 @@ interface RegisteredServiceDbRow {
 
 type PaymentRecordInput = Omit<
   PaymentRecordRow,
-  'id' | 'createdAt' | 'settledAt'
+  "id" | "createdAt" | "settledAt"
 >;
 
 function toIso(value: Date | string | null): string | null {
@@ -158,10 +158,10 @@ function mapRegisteredService(row: RegisteredServiceDbRow): RegisteredService {
 
 async function insertPaymentRecord(
   client: PoolClient,
-  record: PaymentRecordInput
+  record: PaymentRecordInput,
 ): Promise<void> {
   await client.query(
-    'INSERT INTO payment_records (id, signature, buyer, seller, amount, mint, escrow_address, escrow_state, accepted, rejection_reason) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+    "INSERT INTO payment_records (id, signature, buyer, seller, amount, mint, escrow_address, escrow_state, accepted, rejection_reason) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
     [
       crypto.randomUUID(),
       record.signature,
@@ -173,37 +173,36 @@ async function insertPaymentRecord(
       record.escrowState,
       record.accepted,
       record.rejectionReason,
-    ]
+    ],
   );
 }
 
 function isUniqueViolation(error: unknown): boolean {
   return (
-    typeof error === 'object' &&
+    typeof error === "object" &&
     error !== null &&
-    'code' in error &&
-    error.code === '23505'
+    "code" in error &&
+    error.code === "23505"
   );
 }
 
 /** Atomically claim a signature and store its accepted payment record. */
 export async function recordAcceptedPayment(
-  record: PaymentRecordInput
+  record: PaymentRecordInput,
 ): Promise<boolean> {
   await ensureDatabase();
   const client = await pool.connect();
 
   try {
-    await client.query('BEGIN');
-    await client.query(
-      'INSERT INTO seen_signatures (signature) VALUES ($1)',
-      [record.signature]
-    );
+    await client.query("BEGIN");
+    await client.query("INSERT INTO seen_signatures (signature) VALUES ($1)", [
+      record.signature,
+    ]);
     await insertPaymentRecord(client, record);
-    await client.query('COMMIT');
+    await client.query("COMMIT");
     return true;
   } catch (error) {
-    await client.query('ROLLBACK').catch(() => undefined);
+    await client.query("ROLLBACK").catch(() => undefined);
     if (isUniqueViolation(error)) {
       return false;
     }
@@ -215,11 +214,11 @@ export async function recordAcceptedPayment(
 
 /** Insert a payment record, including rejected attempts. */
 export async function addPaymentRecord(
-  record: PaymentRecordInput
+  record: PaymentRecordInput,
 ): Promise<void> {
   await ensureDatabase();
   await pool.query(
-    'INSERT INTO payment_records (id, signature, buyer, seller, amount, mint, escrow_address, escrow_state, accepted, rejection_reason) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+    "INSERT INTO payment_records (id, signature, buyer, seller, amount, mint, escrow_address, escrow_state, accepted, rejection_reason) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
     [
       crypto.randomUUID(),
       record.signature,
@@ -231,18 +230,18 @@ export async function addPaymentRecord(
       record.escrowState,
       record.accepted,
       record.rejectionReason,
-    ]
+    ],
   );
 }
 
 /** Find the newest payment record by signature. */
 export async function findPaymentBySignature(
-  signature: string
+  signature: string,
 ): Promise<PaymentRecordRow | undefined> {
   await ensureDatabase();
   const result = await pool.query<PaymentRecordDbRow>(
-    'SELECT id, signature, buyer, seller, amount, mint, escrow_address, escrow_state, accepted, rejection_reason, created_at, settled_at FROM payment_records WHERE signature = $1 ORDER BY created_at DESC LIMIT 1',
-    [signature]
+    "SELECT id, signature, buyer, seller, amount, mint, escrow_address, escrow_state, accepted, rejection_reason, created_at, settled_at FROM payment_records WHERE signature = $1 ORDER BY created_at DESC LIMIT 1",
+    [signature],
   );
   const row = result.rows[0];
   return row ? mapPaymentRecord(row) : undefined;
@@ -251,7 +250,7 @@ export async function findPaymentBySignature(
 /** Update payment records matching an escrow address. */
 export async function updatePaymentByEscrow(
   escrowAddress: string,
-  update: { escrowState?: string; settledAt?: string }
+  update: { escrowState?: string; settledAt?: string },
 ): Promise<void> {
   await ensureDatabase();
   const assignments: string[] = [];
@@ -259,12 +258,12 @@ export async function updatePaymentByEscrow(
 
   if (update.escrowState !== undefined) {
     values.push(update.escrowState);
-    assignments.push('escrow_state = $' + values.length);
+    assignments.push("escrow_state = $" + values.length);
   }
 
   if (update.settledAt !== undefined) {
     values.push(update.settledAt);
-    assignments.push('settled_at = $' + values.length);
+    assignments.push("settled_at = $" + values.length);
   }
 
   if (assignments.length === 0) {
@@ -273,22 +272,22 @@ export async function updatePaymentByEscrow(
 
   values.push(escrowAddress);
   await pool.query(
-    'UPDATE payment_records SET ' +
-    assignments.join(', ') +
-    ' WHERE escrow_address = $' +
-    values.length,
-    values
+    "UPDATE payment_records SET " +
+      assignments.join(", ") +
+      " WHERE escrow_address = $" +
+      values.length,
+    values,
   );
 }
 
 /** Get recent payment records. */
 export async function getRecentPayments(
-  limit = 50
+  limit = 50,
 ): Promise<PaymentRecordRow[]> {
   await ensureDatabase();
   const result = await pool.query<PaymentRecordDbRow>(
-    'SELECT id, signature, buyer, seller, amount, mint, escrow_address, escrow_state, accepted, rejection_reason, created_at, settled_at FROM payment_records ORDER BY created_at DESC LIMIT $1',
-    [limit]
+    "SELECT id, signature, buyer, seller, amount, mint, escrow_address, escrow_state, accepted, rejection_reason, created_at, settled_at FROM payment_records ORDER BY created_at DESC LIMIT $1",
+    [limit],
   );
   return result.rows.map(mapPaymentRecord);
 }
@@ -299,20 +298,22 @@ export interface AutoRefundCandidate {
 }
 
 /** Get locked payments that have a registered seller service to check. */
-export async function getAutoRefundCandidates(): Promise<AutoRefundCandidate[]> {
+export async function getAutoRefundCandidates(): Promise<
+  AutoRefundCandidate[]
+> {
   await ensureDatabase();
   const result = await pool.query<{
     escrow_address: string;
     seller: string;
     service_urls: string[];
   }>(
-    'SELECT p.escrow_address, p.seller, ARRAY_AGG(DISTINCT s.endpoint_url) AS service_urls ' +
-      'FROM payment_records p ' +
-      'INNER JOIN registered_services s ON s.seller_wallet = p.seller ' +
-      'WHERE p.accepted = TRUE ' +
-      'AND p.escrow_address IS NOT NULL ' +
+    "SELECT p.escrow_address, p.seller, ARRAY_AGG(DISTINCT s.endpoint_url) AS service_urls " +
+      "FROM payment_records p " +
+      "INNER JOIN registered_services s ON s.seller_wallet = p.seller " +
+      "WHERE p.accepted = TRUE " +
+      "AND p.escrow_address IS NOT NULL " +
       "AND p.escrow_state = 'Locked' " +
-      'GROUP BY p.escrow_address, p.seller'
+      "GROUP BY p.escrow_address, p.seller",
   );
   return result.rows.map((row) => ({
     escrowAddress: row.escrow_address,
@@ -323,18 +324,18 @@ export async function getAutoRefundCandidates(): Promise<AutoRefundCandidate[]> 
 
 /** Register a seller's public service endpoint. */
 export async function addRegisteredService(
-  service: Omit<RegisteredService, 'id' | 'createdAt'>
+  service: Omit<RegisteredService, "id" | "createdAt">,
 ): Promise<RegisteredService> {
   await ensureDatabase();
   const result = await pool.query<RegisteredServiceDbRow>(
-    'INSERT INTO registered_services (id, name, endpoint_url, seller_wallet, price_usdc) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, endpoint_url, seller_wallet, price_usdc, created_at',
+    "INSERT INTO registered_services (id, name, endpoint_url, seller_wallet, price_usdc) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, endpoint_url, seller_wallet, price_usdc, created_at",
     [
       crypto.randomUUID(),
       service.name,
       service.endpointUrl,
       service.sellerWallet,
       service.priceUsdc,
-    ]
+    ],
   );
   return mapRegisteredService(result.rows[0]);
 }
@@ -343,7 +344,7 @@ export async function addRegisteredService(
 export async function getRegisteredServices(): Promise<RegisteredService[]> {
   await ensureDatabase();
   const result = await pool.query<RegisteredServiceDbRow>(
-    'SELECT id, name, endpoint_url, seller_wallet, price_usdc, created_at FROM registered_services ORDER BY created_at DESC'
+    "SELECT id, name, endpoint_url, seller_wallet, price_usdc, created_at FROM registered_services ORDER BY created_at DESC",
   );
   return result.rows.map(mapRegisteredService);
 }
