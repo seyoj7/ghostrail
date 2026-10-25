@@ -40,6 +40,12 @@ export function Nav() {
         >
           Services
         </Link>
+        <Link
+          href="/docs"
+          className={`nav__link ${pathname.startsWith("/docs") ? "nav__link--active" : ""}`}
+        >
+          Docs
+        </Link>
       </div>
     </nav>
   );
