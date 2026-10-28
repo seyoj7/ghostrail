@@ -153,6 +153,38 @@ export default function ServicesPage() {
                 <span>{service.priceUsdc} devnet USDC</span>
                 <span className="mono">Seller: {service.sellerWallet}</span>
               </div>
+              <div className="service-id-row">
+                <span className="mono service-id-value">
+                  Service ID: {service.id}
+                </span>
+                <button
+                  className="copy-btn"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(service.id);
+                  }}
+                  title="Copy service ID"
+                >
+                  Copy ID
+                </button>
+              </div>
+              <details className="service-usage">
+                <summary className="service-usage-label">
+                  Quick integration
+                </summary>
+                <pre className="service-usage-code"><code>{`// Discover requirements (GET)
+fetch("/api/services/${service.id}")
+// → { seller, amount, mint, paymentRequirements }
+
+// Verify payment (POST) — price auto-resolved
+fetch("/api", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    transaction: "<base64-signed-tx>",
+    serviceId: "${service.id}"
+  })
+})`}</code></pre>
+              </details>
             </article>
           ))}
         </section>

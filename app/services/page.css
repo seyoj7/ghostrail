@@ -92,6 +92,68 @@
   font-size: 13px;
 }
 
+.service-id-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-card);
+}
+
+.service-id-value {
+  color: var(--text-mut);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.copy-btn {
+  flex-shrink: 0;
+  background: var(--bg-page);
+  color: var(--text-accent);
+  border: 1px solid var(--border-card-hover);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.copy-btn:hover {
+  background: var(--bg-card-hover);
+  border-color: #554884;
+}
+
+.service-usage {
+  margin-top: 10px;
+}
+
+.service-usage-label {
+  color: var(--text-mut);
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.service-usage-label:hover {
+  color: var(--text-main);
+}
+
+.service-usage-code {
+  margin-top: 8px;
+  background: var(--bg-page);
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  padding: 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre;
+  color: var(--text-mut);
+}
+
 @media (max-width: 640px) {
   .service-form {
     grid-template-columns: 1fr;
@@ -100,5 +162,10 @@
   .service-entry-meta {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .service-id-row {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

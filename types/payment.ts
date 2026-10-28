@@ -18,12 +18,33 @@ export interface VerifyResult {
 export interface VerifyRequest {
   /** Base64-encoded signed transaction from the buyer. */
   transaction: string;
-  /** Expected seller public key. */
+  /**
+   * Registered service ID. When provided, seller, amount, and mint are
+   * auto-resolved from the service registry.
+   */
+  serviceId?: string;
+  /** Expected seller public key (required when serviceId is not provided). */
+  seller?: string;
+  /** Expected payment amount in token base units (required when serviceId is not provided). */
+  amount?: string;
+  /** Expected token mint (required when serviceId is not provided). */
+  mint?: string;
+}
+
+/** Payment requirements auto-resolved from a registered service. */
+export interface ServicePaymentRequirements {
+  /** Service registry ID. */
+  serviceId: string;
+  /** Service name. */
+  name: string;
+  /** Seller Solana wallet address. */
   seller: string;
-  /** Expected payment amount in token base units. */
+  /** Payment amount in token base units. */
   amount: string;
-  /** Expected token mint. */
+  /** Token mint address. */
   mint: string;
+  /** Service endpoint URL. */
+  endpointUrl: string;
 }
 
 /** Shape of a settlement (release / refund) request. */

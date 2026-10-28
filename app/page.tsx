@@ -17,8 +17,10 @@ export default function Home() {
             Payments that settle. <br />Fees that vanish.
           </h1>
           <p className="mut hero-description">
-            AI agents and apps pay for APIs in USDC with no SOL needed. Funds sit
-            in escrow and the buyer can refund after the timeout if the API fails.
+            AI agents and apps pay for APIs in USDC with no SOL needed. Prices
+            are auto-resolved from the service registry — no manual amount
+            entry. Funds sit in escrow and the buyer can refund after the
+            timeout if the API fails.
           </p>
           <div className="hero-actions">
             <Link href="/dashboard" className="btn">
@@ -193,12 +195,23 @@ export default function Home() {
           </h2>
           <p className="mut integration-copy">
             Register your endpoint, seller wallet, and price on the Services page.
-            Send the buyer&apos;s signed transaction to the facilitator, then confirm payment on-chain before delivery.
+            Buyers discover your price automatically via the service ID — no manual
+            amount entry needed. Send the buyer&apos;s signed transaction to the
+            facilitator, then confirm payment on-chain before delivery.
           </p>
-          <pre className="integration-code"><code>{`const response = await fetch(FACILITATOR_URL + "/api", {
+          <pre className="integration-code"><code>{`// 1. Discover the service price and payment requirements
+const svc = await fetch(FACILITATOR_URL + "/api/services/" + serviceId);
+const { paymentRequirements } = await svc.json();
+// paymentRequirements → { seller, amount, mint }
+
+// 2. Build and sign the escrow lock transaction using the requirements
+// ...
+
+// 3. Verify — price is auto-resolved from the service registry
+const response = await fetch(FACILITATOR_URL + "/api", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ transaction, seller, amount, mint }),
+  body: JSON.stringify({ transaction, serviceId }),
 });
 const payment = await response.json();
 if (!response.ok || payment.accepted !== true) throw new Error("Payment rejected");

@@ -348,3 +348,22 @@ export async function getRegisteredServices(): Promise<RegisteredService[]> {
   );
   return result.rows.map(mapRegisteredService);
 }
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Find a registered service by its ID. */
+export async function findServiceById(
+  id: string,
+): Promise<RegisteredService | undefined> {
+  if (!UUID_REGEX.test(id)) {
+    return undefined;
+  }
+  await ensureDatabase();
+  const result = await pool.query<RegisteredServiceDbRow>(
+    "SELECT id, name, endpoint_url, seller_wallet, price_usdc, created_at FROM registered_services WHERE id = $1",
+    [id],
+  );
+  const row = result.rows[0];
+  return row ? mapRegisteredService(row) : undefined;
+}

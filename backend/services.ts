@@ -1,10 +1,57 @@
 import "server-only";
 
 import { PublicKey } from "@solana/web3.js";
-import { addRegisteredService, getRegisteredServices } from "./db";
+import {
+  addRegisteredService,
+  findServiceById,
+  getRegisteredServices,
+} from "./db";
+import type { ServicePaymentRequirements } from "../types/payment";
 
 const MAX_U64 = BigInt("18446744073709551615");
 const USDC_DECIMALS = 6;
+const USDC_MINT = process.env.USDC_MINT!;
+
+/** Convert a human-readable USDC price (e.g. "0.01") to token base units (e.g. "10000"). */
+export function usdcToBaseUnits(priceUsdc: string): string {
+  const [whole, fraction = ""] = priceUsdc.split(".");
+  const amount =
+    BigInt(whole) * BigInt(10) ** BigInt(USDC_DECIMALS) +
+    BigInt(fraction.padEnd(USDC_DECIMALS, "0"));
+  return amount.toString();
+}
+
+/** Look up a registered service and return its payment requirements in base units. */
+export async function getServicePaymentRequirements(
+  serviceId: string,
+): Promise<ServicePaymentRequirements | null> {
+  const service = await findServiceById(serviceId);
+  if (!service) return null;
+  return {
+    serviceId: service.id,
+    name: service.name,
+    seller: service.sellerWallet,
+    amount: usdcToBaseUnits(service.priceUsdc),
+    mint: USDC_MINT,
+    endpointUrl: service.endpointUrl,
+  };
+}
+
+/** Handle GET /api/services/:id — return service details with payment requirements. */
+export async function getServiceById(serviceId: string): Promise<Response> {
+  const service = await findServiceById(serviceId);
+  if (!service) {
+    return Response.json({ error: "Service not found" }, { status: 404 });
+  }
+  return Response.json({
+    ...service,
+    paymentRequirements: {
+      seller: service.sellerWallet,
+      amount: usdcToBaseUnits(service.priceUsdc),
+      mint: USDC_MINT,
+    },
+  });
+}
 
 export async function listServices(): Promise<Response> {
   return Response.json(await getRegisteredServices());

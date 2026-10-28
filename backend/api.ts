@@ -2,6 +2,7 @@ import "server-only";
 
 import { findPaymentBySignature, getRecentPayments } from "./db";
 import { fetchEscrow } from "./escrow";
+import { getServicePaymentRequirements } from "./services";
 import { releaseEscrow, refundEscrow } from "./settlement";
 import { verifyPayment } from "./verify";
 
@@ -15,22 +16,52 @@ export async function handlePaymentPost(request: Request): Promise<Response> {
         { status: 400 },
       );
     }
-    const { transaction, seller, amount, mint } = body as Record<
-      string,
-      unknown
-    >;
-    if (
-      typeof transaction !== "string" ||
-      typeof seller !== "string" ||
-      typeof amount !== "string" ||
-      typeof mint !== "string" ||
-      !transaction ||
-      !seller ||
-      !amount ||
-      !mint
-    ) {
+    const fields = body as Record<string, unknown>;
+
+    if (typeof fields.transaction !== "string" || !fields.transaction) {
       return Response.json(
-        { error: "Missing required fields: transaction, seller, amount, mint" },
+        { error: "Missing required field: transaction" },
+        { status: 400 },
+      );
+    }
+    const transaction = fields.transaction;
+
+    let seller: string;
+    let amount: string;
+    let mint: string;
+
+    if (typeof fields.serviceId === "string" && fields.serviceId) {
+      // Auto-resolve seller, amount, and mint from the service registry.
+      const requirements = await getServicePaymentRequirements(
+        fields.serviceId,
+      );
+      if (!requirements) {
+        return Response.json(
+          { error: "Service not found" },
+          { status: 404 },
+        );
+      }
+      seller = requirements.seller;
+      amount = requirements.amount;
+      mint = requirements.mint;
+    } else if (
+      typeof fields.seller === "string" &&
+      typeof fields.amount === "string" &&
+      typeof fields.mint === "string" &&
+      fields.seller &&
+      fields.amount &&
+      fields.mint
+    ) {
+      // Manual specification (backwards compatible).
+      seller = fields.seller;
+      amount = fields.amount;
+      mint = fields.mint;
+    } else {
+      return Response.json(
+        {
+          error:
+            "Provide either serviceId, or seller, amount, and mint",
+        },
         { status: 400 },
       );
     }
