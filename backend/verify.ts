@@ -37,12 +37,48 @@ type ParsedTokenAccount = {
   tokenAmount?: { amount?: unknown };
 };
 
-/** Verify a buyer-signed escrow lock before a seller delivers a resource. */
-export async function verifyPayment(
+/** Verify a buyer-signed escrow lock without submitting it. */
+export function verifyPayment(
   transactionBase64: string,
   expectedSeller: string,
   expectedAmount: string,
   expectedMint: string,
+): Promise<VerifyResult> {
+  return verifyPaymentInternal(
+    transactionBase64,
+    expectedSeller,
+    expectedAmount,
+    expectedMint,
+    false,
+    MAX_TIMEOUT_SECS,
+  );
+}
+
+/** Verify, submit, and confirm a buyer-signed escrow lock before delivery. */
+export function verifyAndSubmitPayment(
+  transactionBase64: string,
+  expectedSeller: string,
+  expectedAmount: string,
+  expectedMint: string,
+  maxTimeoutSeconds = MAX_TIMEOUT_SECS,
+): Promise<VerifyResult> {
+  return verifyPaymentInternal(
+    transactionBase64,
+    expectedSeller,
+    expectedAmount,
+    expectedMint,
+    true,
+    maxTimeoutSeconds,
+  );
+}
+
+async function verifyPaymentInternal(
+  transactionBase64: string,
+  expectedSeller: string,
+  expectedAmount: string,
+  expectedMint: string,
+  submitAndConfirm: boolean,
+  maxTimeoutSeconds: number,
 ): Promise<VerifyResult> {
   let tx: Transaction;
   try {
@@ -274,11 +310,23 @@ export async function verifyPayment(
     );
   }
 
+  if (
+    !Number.isInteger(maxTimeoutSeconds) ||
+    maxTimeoutSeconds < MIN_TIMEOUT_SECS
+  ) {
+    return reject(
+      RejectionReason.InvalidTimeout,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
+  }
   const nowSecs = BigInt(Math.floor(Date.now() / 1000));
   const timeoutSecs = timeout - nowSecs;
   if (
     timeoutSecs < BigInt(MIN_TIMEOUT_SECS) ||
-    timeoutSecs > BigInt(MAX_TIMEOUT_SECS)
+    timeoutSecs > BigInt(Math.min(maxTimeoutSeconds, MAX_TIMEOUT_SECS))
   ) {
     return reject(
       RejectionReason.InvalidTimeout,
@@ -364,6 +412,64 @@ export async function verifyPayment(
     );
   }
 
+  if (submitAndConfirm) {
+    try {
+      if (!status) {
+        const submittedSignature = await connection.sendRawTransaction(
+          tx.serialize(),
+          {
+            skipPreflight: false,
+            preflightCommitment: "confirmed",
+          },
+        );
+        if (submittedSignature !== signature) {
+          throw new Error("Submitted transaction signature changed");
+        }
+      }
+
+      const confirmation = await connection.confirmTransaction(
+        signature,
+        "confirmed",
+      );
+      if (confirmation.value.err) {
+        return reject(
+          RejectionReason.TransactionFailed,
+          signature,
+          expectedSeller,
+          expectedAmount,
+          expectedMint,
+        );
+      }
+    } catch {
+      return reject(
+        RejectionReason.TransactionFailed,
+        signature,
+        expectedSeller,
+        expectedAmount,
+        expectedMint,
+      );
+    }
+
+    const confirmedEscrowReason = await validateExistingEscrow(
+      expectedEscrow,
+      buyerKey,
+      sellerKey,
+      mintKey,
+      escrowId,
+      amount,
+      true,
+    );
+    if (confirmedEscrowReason) {
+      return reject(
+        confirmedEscrowReason,
+        signature,
+        expectedSeller,
+        expectedAmount,
+        expectedMint,
+      );
+    }
+  }
+
   const recorded = await recordAcceptedPayment({
     signature,
     buyer: buyerKey.toBase58(),
@@ -371,7 +477,7 @@ export async function verifyPayment(
     amount: expectedAmount,
     mint: mintKey.toBase58(),
     escrowAddress: expectedEscrow.toBase58(),
-    escrowState: status ? "Locked" : null,
+    escrowState: submitAndConfirm || status ? "Locked" : null,
     accepted: true,
     rejectionReason: null,
   });
@@ -389,7 +495,7 @@ export async function verifyPayment(
     accepted: true,
     signature,
     escrowAddress: expectedEscrow.toBase58(),
-    state: status ? "Locked" : "Pre-submission",
+    state: submitAndConfirm || status ? "Locked" : "Pre-submission",
   };
 }
 
@@ -406,6 +512,7 @@ async function validateExistingEscrow(
   mint: PublicKey,
   escrowId: bigint,
   amount: bigint,
+  requireOnChain = false,
 ): Promise<RejectionReason | null> {
   let accountInfo;
   try {
@@ -414,7 +521,7 @@ async function validateExistingEscrow(
     return RejectionReason.EscrowNotFound;
   }
   if (!accountInfo) {
-    return null;
+    return requireOnChain ? RejectionReason.EscrowNotFound : null;
   }
   if (
     !accountInfo.owner.equals(ESCROW_PROGRAM_ID) ||

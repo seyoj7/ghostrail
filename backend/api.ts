@@ -4,7 +4,7 @@ import { findPaymentBySignature, getRecentPayments } from "./db";
 import { fetchEscrow } from "./escrow";
 import { getServicePaymentRequirements } from "./services";
 import { releaseEscrow, refundEscrow } from "./settlement";
-import { verifyPayment } from "./verify";
+import { verifyAndSubmitPayment, verifyPayment } from "./verify";
 
 /** Handle POST /api by verifying a payment transaction. */
 export async function handlePaymentPost(request: Request): Promise<Response> {
@@ -17,18 +17,45 @@ export async function handlePaymentPost(request: Request): Promise<Response> {
       );
     }
     const fields = body as Record<string, unknown>;
+    const xPayment = request.headers.get("x-payment");
+    const paymentTransaction = xPayment
+      ? decodeX402PaymentHeader(xPayment)
+      : null;
 
-    if (typeof fields.transaction !== "string" || !fields.transaction) {
+    if (xPayment && !paymentTransaction) {
       return Response.json(
-        { error: "Missing required field: transaction" },
+        { error: "X-PAYMENT must contain a valid x402 escrow payment payload" },
         { status: 400 },
       );
     }
-    const transaction = fields.transaction;
+
+    if (
+      !paymentTransaction &&
+      (typeof fields.transaction !== "string" || !fields.transaction)
+    ) {
+      return Response.json(
+        { error: "Provide an X-PAYMENT header or transaction field" },
+        { status: 400 },
+      );
+    }
+    const transaction = paymentTransaction ?? (fields.transaction as string);
 
     let seller: string;
     let amount: string;
     let mint: string;
+    const maxTimeoutSeconds = fields.maxTimeoutSeconds;
+    if (
+      paymentTransaction &&
+      (typeof maxTimeoutSeconds !== "number" ||
+        !Number.isInteger(maxTimeoutSeconds) ||
+        maxTimeoutSeconds < 60 ||
+        maxTimeoutSeconds > 3600)
+    ) {
+      return Response.json(
+        { error: "X-PAYMENT requests require maxTimeoutSeconds from 60 to 3600" },
+        { status: 400 },
+      );
+    }
 
     if (typeof fields.serviceId === "string" && fields.serviceId) {
       // Auto-resolve seller, amount, and mint from the service registry.
@@ -66,11 +93,59 @@ export async function handlePaymentPost(request: Request): Promise<Response> {
       );
     }
 
-    const result = await verifyPayment(transaction, seller, amount, mint);
+    const result = paymentTransaction
+      ? await verifyAndSubmitPayment(
+          transaction,
+          seller,
+          amount,
+          mint,
+          maxTimeoutSeconds as number,
+        )
+      : await verifyPayment(transaction, seller, amount, mint);
     return Response.json(result, { status: result.accepted ? 200 : 402 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Internal error";
     return Response.json({ error: message }, { status: 500 });
+  }
+}
+
+/** Decode a base64 x402 v1 header carrying the escrow lock transaction. */
+function decodeX402PaymentHeader(header: string): string | null {
+  if (!header || header.length > 16_384) return null;
+
+  try {
+    const encodedPayload = Buffer.from(header, "base64");
+    if (
+      encodedPayload.length === 0 ||
+      encodedPayload.toString("base64").replace(/=+$/, "") !==
+        header.replace(/=+$/, "")
+    ) {
+      return null;
+    }
+
+    const payload: unknown = JSON.parse(encodedPayload.toString("utf8"));
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return null;
+    }
+    const payment = payload as Record<string, unknown>;
+    if (
+      payment.x402Version !== 1 ||
+      payment.scheme !== "escrow" ||
+      payment.network !== "solana-devnet" ||
+      !payment.payload ||
+      typeof payment.payload !== "object" ||
+      Array.isArray(payment.payload)
+    ) {
+      return null;
+    }
+
+    const transaction = (payment.payload as Record<string, unknown>).transaction;
+    if (typeof transaction !== "string" || transaction.length > 4096) {
+      return null;
+    }
+    return transaction;
+  } catch {
+    return null;
   }
 }
 

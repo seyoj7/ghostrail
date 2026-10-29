@@ -18,6 +18,7 @@ import { refundEscrow } from "./settlement";
 import { EscrowState } from "../types/escrow";
 
 const REFUND_DISCRIMINATOR = Buffer.from([2, 96, 183, 251, 63, 208, 46, 46]);
+const ESCROW_PROGRAM_ID = new PublicKey(process.env.ESCROW_PROGRAM_ID!);
 const workerState = globalThis as unknown as {
   ghostrailAutomaticRefundWorkerStarted?: boolean;
 };
@@ -138,7 +139,7 @@ async function submitAutomaticRefund(
   ).publicKey;
   const [vault] = PublicKey.findProgramAddressSync(
     [Buffer.from("vault"), escrowPubkey.toBuffer()],
-    new PublicKey(process.env.ESCROW_PROGRAM_ID!),
+    ESCROW_PROGRAM_ID,
   );
   const buyerToken = await getOrCreateAssociatedTokenAccount(
     connection,
@@ -147,7 +148,7 @@ async function submitAutomaticRefund(
     buyer.publicKey,
   );
   const instruction = new TransactionInstruction({
-    programId: new PublicKey(process.env.ESCROW_PROGRAM_ID!),
+    programId: ESCROW_PROGRAM_ID,
     data: REFUND_DISCRIMINATOR,
     keys: [
       { pubkey: buyer.publicKey, isSigner: true, isWritable: true },

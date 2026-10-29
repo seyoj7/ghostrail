@@ -2,8 +2,8 @@ import "server-only";
 
 import {
   Connection,
-  PublicKey,
   Keypair,
+  PublicKey,
   Transaction,
   VersionedTransaction,
 } from "@solana/web3.js";
@@ -65,6 +65,11 @@ const provider = new AnchorProvider(
   },
 );
 const program = new Program(idl as unknown as Idl, provider);
+const stateMap: Record<string, EscrowState> = {
+  locked: EscrowState.Locked,
+  released: EscrowState.Released,
+  refunded: EscrowState.Refunded,
+};
 
 export async function fetchEscrow(
   escrowAddress: string,
@@ -75,11 +80,6 @@ export async function fetchEscrow(
     const account = (await accounts.escrow.fetch(
       pubkey,
     )) as AnchorEscrowAccount;
-    const stateMap: Record<string, EscrowState> = {
-      locked: EscrowState.Locked,
-      released: EscrowState.Released,
-      refunded: EscrowState.Refunded,
-    };
     const stateKey = Object.keys(account.state)[0];
     return {
       buyer: account.buyer.toBase58(),

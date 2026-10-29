@@ -10,14 +10,14 @@ import type { ServicePaymentRequirements } from "../types/payment";
 
 const MAX_U64 = BigInt("18446744073709551615");
 const USDC_DECIMALS = 6;
+const USDC_BASE = BigInt(10) ** BigInt(USDC_DECIMALS);
 const USDC_MINT = process.env.USDC_MINT!;
 
 /** Convert a human-readable USDC price (e.g. "0.01") to token base units (e.g. "10000"). */
 export function usdcToBaseUnits(priceUsdc: string): string {
   const [whole, fraction = ""] = priceUsdc.split(".");
   const amount =
-    BigInt(whole) * BigInt(10) ** BigInt(USDC_DECIMALS) +
-    BigInt(fraction.padEnd(USDC_DECIMALS, "0"));
+    BigInt(whole) * USDC_BASE + BigInt(fraction.padEnd(USDC_DECIMALS, "0"));
   return amount.toString();
 }
 
@@ -134,8 +134,7 @@ export async function registerService(request: Request): Promise<Response> {
   }
   const [whole, fraction = ""] = priceUsdc.split(".");
   const amountBaseUnits =
-    BigInt(whole) * BigInt(10) ** BigInt(USDC_DECIMALS) +
-    BigInt(fraction.padEnd(USDC_DECIMALS, "0"));
+    BigInt(whole) * USDC_BASE + BigInt(fraction.padEnd(USDC_DECIMALS, "0"));
   if (amountBaseUnits <= BigInt(0) || amountBaseUnits > MAX_U64) {
     return Response.json(
       { error: "Price is outside the supported range" },

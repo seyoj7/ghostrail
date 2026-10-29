@@ -17,10 +17,10 @@ export default function Home() {
             Payments that settle. <br />Fees that vanish.
           </h1>
           <p className="mut hero-description">
-            AI agents and apps pay for APIs in USDC with no SOL needed. Prices
-            are auto-resolved from the service registry — no manual amount
-            entry. Funds sit in escrow and the buyer can refund after the
-            timeout if the API fails.
+            AI agents and apps pay for APIs in devnet USDC. A buyer signs the
+            escrow lock and the facilitator confirms it before the API handler
+            runs. Buyers need devnet SOL for fees and rent; failed requests
+            remain refundable after the timeout.
           </p>
           <div className="hero-actions">
             <Link href="/dashboard" className="btn">
@@ -155,9 +155,9 @@ export default function Home() {
                   <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
                 </svg>
               </div>
-              <h3 className="architecture-card-title">Zero SOL requirements</h3>
+              <h3 className="architecture-card-title">Devnet transaction fees</h3>
               <p className="architecture-card-desc">
-                AI agents and client applications pay exclusively in devnet USDC. Transaction fees are sponsored without granting any spending authority.
+                The current buyer flow pays Solana transaction fees and escrow account rent in devnet SOL. Lock fee sponsorship is not wired into this x402 flow.
               </p>
             </div>
 
@@ -194,28 +194,34 @@ export default function Home() {
             Register your API, integrate verification
           </h2>
           <p className="mut integration-copy">
-            Register your endpoint, seller wallet, and price on the Services page.
-            Buyers discover your price automatically via the service ID — no manual
-            amount entry needed. Send the buyer&apos;s signed transaction to the
-            facilitator, then confirm payment on-chain before delivery.
+            Return an x402 HTTP 402 challenge when a request has no
+            X-PAYMENT header. Forward the buyer&apos;s signed lock in that header
+            to the facilitator; it submits and confirms the escrow before your
+            handler runs. After success, sign a release and return the result
+            with X-PAYMENT-RESPONSE.
           </p>
-          <pre className="integration-code"><code>{`// 1. Discover the service price and payment requirements
-const svc = await fetch(FACILITATOR_URL + "/api/services/" + serviceId);
-const { paymentRequirements } = await svc.json();
-// paymentRequirements → { seller, amount, mint }
+          <pre className="integration-code"><code>{`// 1. Request your resource and read the HTTP 402 x402 requirements
+const challenge = await fetch(resourceUrl, { method: "POST", body });
+const { accepts } = await challenge.json();
+const requirement = accepts[0];
 
-// 2. Build and sign the escrow lock transaction using the requirements
-// ...
+// 2. Build and buyer-sign the escrow lock from requirement fields
+const transaction = await signEscrowLock(requirement);
+const xPayment = btoa(JSON.stringify({
+  x402Version: 1,
+  scheme: "escrow",
+  network: "solana-devnet",
+  payload: { transaction },
+}));
 
-// 3. Verify — price is auto-resolved from the service registry
-const response = await fetch(FACILITATOR_URL + "/api", {
+// 3. Retry; the service forwards X-PAYMENT to GHOSTRAIL
+const response = await fetch(resourceUrl, {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ transaction, serviceId }),
+  headers: { "Content-Type": "application/json", "X-PAYMENT": xPayment },
+  body,
 });
-const payment = await response.json();
-if (!response.ok || payment.accepted !== true) throw new Error("Payment rejected");
-// Continue only after your on-chain settlement check succeeds.`}</code></pre>
+if (!response.ok) throw new Error("Payment or resource request failed");
+const settlement = JSON.parse(atob(response.headers.get("X-PAYMENT-RESPONSE")));`}</code></pre>
 <Link href="/services" className="btn2 integration-register-link">
             Register your service API
           </Link>

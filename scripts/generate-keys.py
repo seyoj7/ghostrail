@@ -1,4 +1,4 @@
-from ghostrail_common import base58_encode
+from scripts.ghostrail_common import base58_encode
 from solders.keypair import Keypair
 
 

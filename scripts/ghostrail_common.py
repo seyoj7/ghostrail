@@ -26,8 +26,8 @@ COMMITMENT = Commitment.CONFIRMED
 
 
 def load_dotenv() -> None:
-    """Load a simple root .env without overwriting process environment values."""
-    env_path = Path.cwd() / ".env"
+    """Load the repository-root .env without overwriting process values."""
+    env_path = Path(__file__).resolve().parents[1] / ".env"
     try:
         lines = env_path.read_text(encoding="utf-8").splitlines()
     except OSError:
