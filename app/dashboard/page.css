@@ -54,10 +54,15 @@
   transition: all 0.15s ease;
 }
 
-.refresh-action-btn:hover {
+.refresh-action-btn:hover:not(:disabled) {
   color: var(--text-main);
   border-color: #554884;
   background: rgba(139, 92, 246, 0.08);
+}
+
+.refresh-action-btn:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
 }
 
 .tx-hash {
@@ -74,6 +79,7 @@
 
 .spinner {
   display: inline-block;
+  transform-origin: center;
   animation: spin 0.8s linear infinite;
 }
 

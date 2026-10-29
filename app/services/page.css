@@ -38,12 +38,19 @@
   outline-offset: 1px;
 }
 
+.service-form-footer {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
 .service-submit {
   justify-self: start;
 }
 
 .service-message {
-  align-self: center;
   font-size: 14px;
 }
 
@@ -123,35 +130,6 @@
 .copy-btn:hover {
   background: var(--bg-card-hover);
   border-color: #554884;
-}
-
-.service-usage {
-  margin-top: 10px;
-}
-
-.service-usage-label {
-  color: var(--text-mut);
-  font-size: 13px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.service-usage-label:hover {
-  color: var(--text-main);
-}
-
-.service-usage-code {
-  margin-top: 8px;
-  background: var(--bg-page);
-  border: 1px solid var(--border-card);
-  border-radius: 8px;
-  padding: 14px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  line-height: 1.5;
-  overflow-x: auto;
-  white-space: pre;
-  color: var(--text-mut);
 }
 
 @media (max-width: 640px) {

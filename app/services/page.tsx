@@ -122,18 +122,20 @@ export default function ServicesPage() {
               placeholder="0.00"
             />
           </label>
-          {error && <p className="bad service-message" role="alert">{error}</p>}
-          {notice && <p className="ok service-message" role="status">{notice}</p>}
-          <button className="btn service-submit" type="submit" disabled={submitting}>
-            {submitting ? "RegisteringÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : "Register service"}
-          </button>
+          <div className="service-form-footer">
+            <button className="btn service-submit" type="submit" disabled={submitting}>
+              {submitting ? "Registering..." : "Register service"}
+            </button>
+            {error && <p className="bad service-message" role="alert">{error}</p>}
+            {notice && <p className="ok service-message" role="status">{notice}</p>}
+          </div>
         </form>
 
         <section className="service-list" aria-labelledby="registered-services-title">
           <h2 className="service-list-heading" id="registered-services-title">
             Registered services
           </h2>
-          {loading && <p className="mut">Loading servicesÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦</p>}
+          {loading && <p className="mut">Loading services...</p>}
           {!loading && error && services.length === 0 && (
             <p className="mut">Service registrations could not be loaded.</p>
           )}
@@ -167,24 +169,6 @@ export default function ServicesPage() {
                   Copy ID
                 </button>
               </div>
-              <details className="service-usage">
-                <summary className="service-usage-label">
-                  Quick integration
-                </summary>
-                <pre className="service-usage-code"><code>{`// Discover requirements (GET)
-fetch("/api/services/${service.id}")
-// → { seller, amount, mint, paymentRequirements }
-
-// Verify payment (POST) — price auto-resolved
-fetch("/api", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    transaction: "<base64-signed-tx>",
-    serviceId: "${service.id}"
-  })
-})`}</code></pre>
-              </details>
             </article>
           ))}
         </section>

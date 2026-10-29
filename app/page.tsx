@@ -193,34 +193,87 @@ export default function Home() {
             Register your API, integrate verification
           </h2>
           <p className="mut integration-copy">
-            Return an x402 HTTP 402 challenge when a request has no
-            X-PAYMENT header. The buyer deposits reusable credit once, then
-            sends a buyer-signed charge authorization for each call. Verify it
-            with the facilitator, run the handler, and submit the charge only
-            after success.
+            In your API handler, return an x402 HTTP 402 challenge when a
+            request has no X-PAYMENT header. For a paid request, verify the
+            buyer-signed authorization with GHOSTRAIL, run your handler, then
+            submit the charge only after the handler succeeds. The buyer funds
+            reusable credit separately and signs each charge.
           </p>
-          <pre className="integration-code"><code>{`// 1. Request your resource and read the HTTP 402 x402 requirements
-const challenge = await fetch(resourceUrl, { method: "POST", body });
-const { accepts } = await challenge.json();
-const requirement = accepts[0];
+          <pre className="integration-code"><code>{`// Configure these on your server; never expose them to browser code.
+const FACILITATOR_URL = process.env.GHOSTRAIL_URL!;
+const ESCROW_PROGRAM_ID = process.env.ESCROW_PROGRAM_ID!;
+const serviceId = process.env.GHOSTRAIL_SERVICE_ID!;
+const resourceUrl = request.url;
 
-// 2. Deposit credit once, then sign a charge for this call and its nonce
-const transaction = await signCreditCharge(requirement, nextNonce);
-const xPayment = btoa(JSON.stringify({
+// In your resource's POST handler:
+const serviceResponse = await fetch(
+  FACILITATOR_URL + "/api/services/" + serviceId
+);
+if (!serviceResponse.ok) throw new Error("Unknown GHOSTRAIL service");
+const registeredService = await serviceResponse.json();
+const { seller, amount, mint } = registeredService.paymentRequirements;
+
+// Return the x402 challenge if the buyer has not sent a charge authorization.
+const challenge = {
   x402Version: 1,
-  scheme: "escrow",
-  network: "solana-devnet",
-  payload: { transaction },
-}));
+  accepts: [{
+    scheme: "escrow",
+    network: "solana-devnet",
+    maxAmountRequired: amount,
+    resource: resourceUrl,
+    description: registeredService.name,
+    mimeType: "application/json",
+    payTo: seller,
+    asset: mint,
+    extra: {
+      escrowProgramId: ESCROW_PROGRAM_ID,
+      creditModel: "prepaid",
+      minDepositAmount: "1000000",
+      maxBalanceAmount: "100000000",
+    },
+  }],
+};
+const xPayment = request.headers.get("X-PAYMENT");
+if (!xPayment) return Response.json(challenge, { status: 402 });
 
-// 3. Retry; the service forwards X-PAYMENT to GHOSTRAIL
-const response = await fetch(resourceUrl, {
+// Verify the signed charge. This does not submit it on-chain yet.
+const verifyResponse = await fetch(FACILITATOR_URL + "/api", {
   method: "POST",
   headers: { "Content-Type": "application/json", "X-PAYMENT": xPayment },
-  body,
+  body: JSON.stringify({ serviceId }),
 });
-if (!response.ok) throw new Error("Payment or resource request failed");
-const settlement = JSON.parse(atob(response.headers.get("X-PAYMENT-RESPONSE")));`}</code></pre>
+const authorization = await verifyResponse.json();
+if (!verifyResponse.ok || authorization.accepted !== true) {
+  return Response.json({ ...challenge, error: "Payment rejected" }, { status: 402 });
+}
+
+// Your handler must throw/reject on failed delivery so the charge is skipped.
+const result = await runYourHandler(request);
+
+// Charge only after successful delivery; PUT /api submits and confirms it.
+const chargeResponse = await fetch(FACILITATOR_URL + "/api", {
+  method: "PUT",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    action: "charge",
+    creditAddress: authorization.creditAddress,
+    signature: authorization.signature,
+    transaction: authorization.transaction,
+  }),
+});
+const charge = await chargeResponse.json();
+if (!chargeResponse.ok || charge.success !== true) {
+  return Response.json({ error: "Charge settlement failed" }, { status: 502 });
+}
+
+const receipt = Buffer.from(JSON.stringify({
+  success: true,
+  transaction: charge.signature,
+  network: "solana-devnet",
+})).toString("base64");
+return Response.json(result, {
+  headers: { "X-PAYMENT-RESPONSE": receipt, "Cache-Control": "private, no-store" },
+});`}</code></pre>
 <Link href="/services" className="btn2 integration-register-link">
             Register your service API
           </Link>

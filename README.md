@@ -15,11 +15,6 @@ and reusable prepaid credit:
 The buyer pays transaction fees and account rent in devnet SOL. GHOSTRAIL does not
 custody escrowed USDC: the Anchor program controls the prepaid credit vault PDA.
 
-> **Status:** This is an unaudited Solana devnet prototype. It is not a
-> production payment facilitator or delivery oracle. The escrow scheme is
-> custom and is not compatible with the built-in exact-transfer SVM scheme.
-> Do not use real funds or deploy the program to mainnet.
-
 ## Architecture
 
 ```text
@@ -106,22 +101,24 @@ deposit bounds in `extra`:
 ```json
 {
   "x402Version": 1,
-  "accepts": [{
-    "scheme": "escrow",
-    "network": "solana-devnet",
-    "maxAmountRequired": "10000",
-    "resource": "http://127.0.0.1:8080/chat",
-    "description": "Charge from reusable GHOSTRAIL USDC credit",
-    "mimeType": "application/json",
-    "payTo": "<seller public key>",
-    "asset": "<USDC mint>",
-    "extra": {
-      "escrowProgramId": "<escrow program ID>",
-      "creditModel": "prepaid",
-      "minDepositAmount": "1000000",
-      "maxBalanceAmount": "100000000"
+  "accepts": [
+    {
+      "scheme": "escrow",
+      "network": "solana-devnet",
+      "maxAmountRequired": "10000",
+      "resource": "http://127.0.0.1:8080/chat",
+      "description": "Charge from reusable GHOSTRAIL USDC credit",
+      "mimeType": "application/json",
+      "payTo": "<seller public key>",
+      "asset": "<USDC mint>",
+      "extra": {
+        "escrowProgramId": "<escrow program ID>",
+        "creditModel": "prepaid",
+        "minDepositAmount": "1000000",
+        "maxBalanceAmount": "100000000"
+      }
     }
-  }]
+  ]
 }
 ```
 
@@ -176,22 +173,22 @@ facilitator cannot spend credit without a buyer-signed charge transaction.
 
 ### Payment and escrow API
 
-| Method | Route | Description |
-| --- | --- | --- |
-| `POST` | `/api` | Verify a legacy lock or a buyer-signed prepaid charge authorization |
-| `PUT` | `/api` | Submit a buyer-signed credit deposit or post-handler charge; legacy release/refund remain available |
-| `GET` | `/api` | Return the 50 newest payment records |
-| `GET` | `/api?signature=...` | Find a payment record by signature |
-| `GET` | `/api?escrowAddress=...` | Read an escrow account from Solana |
-| `GET` | `/api?creditAddress=...` | Read a reusable prepaid credit balance from Solana |
+| Method | Route                    | Description                                                                                         |
+| ------ | ------------------------ | --------------------------------------------------------------------------------------------------- |
+| `POST` | `/api`                   | Verify a legacy lock or a buyer-signed prepaid charge authorization                                 |
+| `PUT`  | `/api`                   | Submit a buyer-signed credit deposit or post-handler charge; legacy release/refund remain available |
+| `GET`  | `/api`                   | Return the 50 newest payment records                                                                |
+| `GET`  | `/api?signature=...`     | Find a payment record by signature                                                                  |
+| `GET`  | `/api?escrowAddress=...` | Read an escrow account from Solana                                                                  |
+| `GET`  | `/api?creditAddress=...` | Read a reusable prepaid credit balance from Solana                                                  |
 
 ### Service registry API
 
-| Method | Route | Description |
-| --- | --- | --- |
-| `GET` | `/api/services` | List registered services |
-| `GET` | `/api/services/:id` | Get service details and auto-resolved payment requirements (`seller`, `amount`, `mint`) |
-| `POST` | `/api/services` | Register a service endpoint, seller wallet, and price |
+| Method | Route               | Description                                                                             |
+| ------ | ------------------- | --------------------------------------------------------------------------------------- |
+| `GET`  | `/api/services`     | List registered services                                                                |
+| `GET`  | `/api/services/:id` | Get service details and auto-resolved payment requirements (`seller`, `amount`, `mint`) |
+| `POST` | `/api/services`     | Register a service endpoint, seller wallet, and price                                   |
 
 Registered services are explicitly marked **Unverified**. GHOSTRAIL does not
 call, proxy, or prove ownership of registered URLs.
@@ -263,59 +260,53 @@ program to devnet before using the new buyer client.
 
 ## Python scripts suite
 
+For a short buyer-side Python integration, use the self-contained
+[`ghostrail_sdk/`](./ghostrail_sdk/) package. All Python SDK implementation and
+shared helpers are consolidated in [`index.py`](./ghostrail_sdk/python/index.py):
+
+```python
+import os
+from ghostrail_sdk.python.index import Buyer
+
+private_key = os.getenv("BUYER_PRIVATE_KEY")
+sdk = Buyer()
+sdk.deposit_credit(private_key, "SELLER_ADDRESS", "5")
+sdk.call_service(private_key, "http://127.0.0.1:8080/chat", "Hello")
+```
+
+Install the SDK once from the repository root with `python -m pip install -e .`.
+After that, run the examples from `ghostrail_sdk/python/examples/` or by their
+repository-root paths below.
+Configure `BUYER_PRIVATE_KEY` and `ESCROW_PROGRAM_ID` in the environment or
+repository-root `.env`. The Python SDK defaults to Solana Devnet RPC; see
+[`ghostrail_sdk/python/README.md`](./ghostrail_sdk/python/README.md)
+for the full API and all four operations.
+
+Node.js users can use the companion package in [`ghostrail_sdk/node/`](./ghostrail_sdk/node/).
+It provides the same four operations and examples; see its [README](./ghostrail_sdk/node/README.md).
+
 Install dependencies:
 
 ```powershell
 python -m pip install -r scripts/requirements.txt
 ```
 
-### 1. `buyer-client.py` (Recommended Buyer Flow)
+### Buyer SDK examples
 
-An automated client demonstrating the x402 buyer journey:
-1. Calls the service and reads its HTTP 402 requirements.
-2. Checks that the buyer has enough prepaid credit for the requested call.
-3. Signs a nonce-protected charge for this call and retries with `X-PAYMENT`.
-4. Receives the resource only after the handler succeeds and the charge is confirmed.
-5. Reuses the remaining balance on later calls.
+The four short Python examples live under `ghostrail_sdk/python/examples/`:
 
 ```powershell
-# Run with default prompt
-python test/buyer-client.py
-
-# Or pass a custom prompt
-python test/buyer-client.py "Explain quantum computing in one sentence"
-
-# Or pass a custom service URL and prompt
-python test/buyer-client.py http://127.0.0.1:8080/chat "Hello world"
+python ghostrail_sdk/python/examples/buyer_client.py
+python ghostrail_sdk/python/examples/check_credit.py
+python ghostrail_sdk/python/examples/deposit_credit.py
+python ghostrail_sdk/python/examples/withdraw_credit.py
 ```
 
-Deposit prepaid credit separately (amount defaults to 1 USDC and must be between
-1 and 100 USDC):
-
-```powershell
-python test/deposit-credit.py <SELLER_PUBLIC_KEY> 1
-```
-
-The buyer client does not deposit automatically. It reports insufficient credit
-and shows the deposit command when the balance is too low.
-
-Check the current prepaid balance for a seller with:
-
-```powershell
-python test/check-credit.py <SELLER_PUBLIC_KEY>
-```
-
-This reports reusable prepaid credit; it does not include USDC in a legacy lock.
-
-Withdraw unused prepaid credit with the separate script (this does not contact the service):
-
-```powershell
-python test/withdraw-credit.py <SELLER_PUBLIC_KEY>
-```
-
-The script creates the buyer's USDC associated token account if it is missing,
-then submits a buyer-signed withdrawal. The buyer needs devnet SOL for transaction
-fees and, when needed, the token account's rent.
+Set the buyer private key in `.env`. Edit the endpoint and prompt in
+`buyer_client.py`; enter buyer/seller addresses in `check_credit.py` and the
+seller address in the deposit/withdraw examples. Install the editable Python
+package first with `python -m pip install -e .` from the repository root. See
+[`ghostrail_sdk/python/README.md`](./ghostrail_sdk/python/README.md) for details.
 
 ### 2. `test/lock-usdc.py` (Legacy Lock Helper)
 
@@ -338,7 +329,7 @@ python test/refund-escrow.py <ESCROW_PDA>
 ```
 
 Set `BUYER_PRIVATE_KEY` in the repository-root `.env` first. This refunds only
-the legacy lock; use `python test/withdraw-credit.py <SELLER_PUBLIC_KEY>` to
+the legacy lock; use `python ghostrail_sdk/python/examples/withdraw_credit.py` to
 withdraw unused prepaid credit.
 
 ### 3. `generate-keys.py` & `show-addresses.py`
@@ -354,6 +345,7 @@ A standalone reference API server demonstrating a paywalled AI service. It
 wraps NVIDIA's OpenAI-compatible LLM endpoint behind GHOSTRAIL.
 
 ### Features
+
 - **HTTP 402 Gating**: Returns x402 v1 requirements if called without `X-PAYMENT`.
 - **Reusable payment**: Buyers deposit USDC once, then authorize each call with a buyer-signed, nonce-protected charge.
 - **Automated charge**: The service runs the NVIDIA handler first, then submits the charge through GHOSTRAIL. The response includes `X-PAYMENT-RESPONSE` with the confirmed charge signature.

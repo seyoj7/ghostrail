@@ -68,6 +68,16 @@ export default function DashboardPage() {
 
   const verifiedCount = records.filter((r) => r.accepted).length;
   const rejectedCount = records.filter((r) => !r.accepted).length;
+  const acceptedVolume = records
+    .filter((r) => r.accepted)
+    .reduce((total, record) => {
+      try {
+        return total + BigInt(record.amount);
+      } catch {
+        return total;
+      }
+    }, BigInt(0))
+    .toString();
 
   return (
     <div className="pg">
@@ -87,12 +97,12 @@ export default function DashboardPage() {
             <div className="bad stat-val">{rejectedCount}</div>
           </div>
           <div className="card stat-card">
-            <div className="mut stat-label">Fees sponsored</div>
-            <div className="mut stat-val">Not available</div>
+            <div className="mut stat-label">Total payments</div>
+            <div className="mut stat-val">{records.length}</div>
           </div>
           <div className="card stat-card">
-            <div className="mut stat-label">Fee-payer balance</div>
-            <div className="mut stat-val">Not available</div>
+            <div className="mut stat-label">Accepted volume</div>
+            <div className="mut stat-val">{formatUsdc(acceptedVolume)} USDC</div>
           </div>
         </div>
 
@@ -106,7 +116,36 @@ export default function DashboardPage() {
               disabled={loading}
               title="Refresh payments"
             >
-              <span className={loading ? "spinner" : ""} aria-hidden="true">&#x21BB;</span>
+              {loading ? (
+                <svg
+                  className="spinner"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.8"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="9" strokeDasharray="42 16" />
+                </svg>
+              ) : (
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                  <polyline points="21 3 21 8 16 8" />
+                </svg>
+              )}
               Refresh
             </button>
           </div>
