@@ -17,6 +17,12 @@ export async function prepareForSponsorship(
   tx.recentBlockhash = (
     await connection.getLatestBlockhash("confirmed")
   ).blockhash;
+  // Both fields are part of the signed message. Discard stale signatures so
+  // the buyer can sign the sponsored message after it is prepared.
+  tx.signatures = tx.signatures.map(({ publicKey }) => ({
+    publicKey,
+    signature: null,
+  }));
   return tx
     .serialize({ requireAllSignatures: false, verifySignatures: false })
     .toString("base64");

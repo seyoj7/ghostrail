@@ -175,6 +175,17 @@ async function verifyPaymentInternal(
       expectedMint,
     );
   }
+  // The client creates the buyer token account before signing, so the payment
+  // transaction must contain only the escrow lock, with no unrelated actions.
+  if (tx.instructions.length !== 1) {
+    return reject(
+      RejectionReason.MalformedTransaction,
+      signature,
+      expectedSeller,
+      expectedAmount,
+      expectedMint,
+    );
+  }
 
   const lockIx = escrowInstructions[0];
   if (
@@ -415,15 +426,20 @@ async function verifyPaymentInternal(
   if (submitAndConfirm) {
     try {
       if (!status) {
-        const submittedSignature = await connection.sendRawTransaction(
-          tx.serialize(),
-          {
-            skipPreflight: false,
-            preflightCommitment: "confirmed",
-          },
-        );
-        if (submittedSignature !== signature) {
-          throw new Error("Submitted transaction signature changed");
+        try {
+          const submittedSignature = await connection.sendRawTransaction(
+            tx.serialize(),
+            {
+              skipPreflight: false,
+              preflightCommitment: "confirmed",
+            },
+          );
+          if (submittedSignature !== signature) {
+            throw new Error("Submitted transaction signature changed");
+          }
+        } catch {
+          // A prior attempt may have landed even if its RPC response was lost.
+          // Confirmation by the already-known signature is the source of truth.
         }
       }
 

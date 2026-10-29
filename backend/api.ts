@@ -9,7 +9,15 @@ import { verifyAndSubmitPayment, verifyPayment } from "./verify";
 /** Handle POST /api by verifying a payment transaction. */
 export async function handlePaymentPost(request: Request): Promise<Response> {
   try {
-    const body: unknown = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json(
+        { error: "Request body must be valid JSON" },
+        { status: 400 },
+      );
+    }
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       return Response.json(
         { error: "Request body must be a JSON object" },
@@ -152,7 +160,15 @@ function decodeX402PaymentHeader(header: string): string | null {
 /** Handle PUT /api using a buyer- or seller-signed settlement transaction. */
 export async function handleSettlementPut(request: Request): Promise<Response> {
   try {
-    const body: unknown = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json(
+        { error: "Request body must be valid JSON" },
+        { status: 400 },
+      );
+    }
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       return Response.json(
         { error: "Request body must be a JSON object" },

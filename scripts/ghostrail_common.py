@@ -37,7 +37,10 @@ def load_dotenv() -> None:
         match = re.match(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$", line)
         if not match or os.environ.get(match.group(1)):
             continue
-        os.environ[match.group(1)] = match.group(2).strip("'")
+        value = match.group(2).strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        os.environ[match.group(1)] = value
 
 
 def required(name: str, value: str | None, *, command_line: bool = False) -> str:

@@ -15,9 +15,17 @@ const USDC_MINT = process.env.USDC_MINT!;
 
 /** Convert a human-readable USDC price (e.g. "0.01") to token base units (e.g. "10000"). */
 export function usdcToBaseUnits(priceUsdc: string): string {
+  if (!/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(priceUsdc)) {
+    throw new RangeError(
+      "Price must be a positive USDC amount with up to 6 decimal places",
+    );
+  }
   const [whole, fraction = ""] = priceUsdc.split(".");
   const amount =
     BigInt(whole) * USDC_BASE + BigInt(fraction.padEnd(USDC_DECIMALS, "0"));
+  if (amount <= BigInt(0) || amount > MAX_U64) {
+    throw new RangeError("Price is outside the supported USDC amount range");
+  }
   return amount.toString();
 }
 
