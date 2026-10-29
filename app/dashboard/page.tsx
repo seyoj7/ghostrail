@@ -19,6 +19,21 @@ interface PaymentRecord {
   settledAt: string | null;
 }
 
+function formatUsdc(baseUnits: string): string {
+  try {
+    const amount = BigInt(baseUnits);
+    const scale = BigInt(1_000_000);
+    const whole = amount / scale;
+    const fraction = (amount % scale)
+      .toString()
+      .padStart(6, "0")
+      .replace(/0+$/, "");
+    return fraction ? `${whole}.${fraction}` : whole.toString();
+  } catch {
+    return baseUnits;
+  }
+}
+
 export default function DashboardPage() {
   const [records, setRecords] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,7 +138,7 @@ export default function DashboardPage() {
                   <div className="row" key={record.id}>
                     <span className="mono mut">{timeStr}</span>
                     <span>{record.seller.slice(0, 11)}...</span>
-                    <span>{record.amount} USDC</span>
+                    <span>{formatUsdc(record.amount)} USDC</span>
                     <span>
                       <span className={isOk ? "ok" : "bad"}>{statusLabel}</span>
                     </span>

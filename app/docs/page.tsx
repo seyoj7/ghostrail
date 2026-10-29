@@ -9,20 +9,20 @@ export default function DocsPage() {
         <main className="docs-page">
           <header className="docs-header">
             <div className="mono docs-eyebrow">INTEGRATION GUIDE</div>
-            <h1 className="docs-title">Pay for an API with x402 escrow</h1>
+            <h1 className="docs-title">Pay from reusable USDC credit</h1>
             <p className="mut docs-intro">
-              GHOSTRAIL uses the x402 v1 HTTP headers with a custom escrow
-              scheme on Solana devnet. A lock is confirmed before your handler
-              runs; the seller releases funds only after the handler succeeds.
+              GHOSTRAIL uses an x402 v1 HTTP challenge with a buyer funded,
+              seller bound credit account on Solana devnet. Deposit once, then
+              authorize individual service charges from the remaining balance.
             </p>
           </header>
 
           <section className="docs-section" aria-labelledby="docs-discovery">
-            <h2 id="docs-discovery">1. Request the resource</h2>
+            <h2 id="docs-discovery">1. Read the payment challenge</h2>
             <p className="mut">
-              Send the normal request without <code>X-PAYMENT</code>. A paid
-              endpoint returns HTTP 402 with x402 v1 payment requirements.
-              The amount is in USDC base units.
+              Call the resource without <code>X-PAYMENT</code>. The HTTP 402
+              response includes the service price and the credit deposit bounds.
+              Amounts use six-decimal USDC base units.
             </p>
             <pre className="docs-code"><code>{`{
   "x402Version": 1,
@@ -30,88 +30,78 @@ export default function DocsPage() {
     "scheme": "escrow",
     "network": "solana-devnet",
     "maxAmountRequired": "10000",
-    "resource": "http://127.0.0.1:8080/chat",
-    "description": "USDC payment held in GHOSTRAIL escrow",
-    "mimeType": "application/json",
     "payTo": "<seller public key>",
-    "maxTimeoutSeconds": 300,
     "asset": "<USDC mint>",
-    "extra": { "escrowProgramId": "<escrow program ID>" }
+    "extra": {
+      "escrowProgramId": "<escrow program ID>",
+      "creditModel": "prepaid",
+      "minDepositAmount": "1000000",
+      "maxBalanceAmount": "100000000"
+    }
   }]
 }`}</code></pre>
             <p className="mut">
-              x402 names the seller <code>payTo</code>, the token mint{' '}
-              <code>asset</code>, and the timeout limit{' '}
-              <code>maxTimeoutSeconds</code>. GHOSTRAIL puts the escrow
-              program address in <code>extra.escrowProgramId</code>.
+              Deposit between 1 and 100 USDC. The buyer/seller/mint combination
+              has one deterministic credit account. New deposits can top it up,
+              as long as the total balance stays at or below 100 USDC.
             </p>
           </section>
 
           <section className="docs-section" aria-labelledby="docs-payment">
-            <h2 id="docs-payment">2. Sign and send X-PAYMENT</h2>
+            <h2 id="docs-payment">2. Deposit once and sign each call</h2>
             <p className="mut">
-              Build an Anchor <code>lock</code> transaction using the amount,
-              seller, asset, program, and timeout limit from the challenge. The
-              buyer signs it and sends the serialized transaction in an x402
-              v1 payload. The facilitator submits the signed lock and waits for
-              on-chain confirmation.
+              The buyer signs <code>deposit_credit</code> to fund the account.
+              For each request, the buyer signs a <code>charge_credit</code>
+              instruction for the service price and the next on-chain nonce.
+              The transaction is sent in the x402 v1 header:
             </p>
             <pre className="docs-code"><code>{`const payment = {
   x402Version: 1,
   scheme: "escrow",
   network: "solana-devnet",
-  payload: { transaction: "<base64 signed Solana transaction>" }
+  payload: { transaction: "<base64 buyer-signed charge transaction>" }
 };
-
 const xPayment = btoa(JSON.stringify(payment));
 const response = await fetch(resourceUrl, {
   method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "X-PAYMENT": xPayment
-  },
+  headers: { "Content-Type": "application/json", "X-PAYMENT": xPayment },
   body: JSON.stringify({ prompt })
 });`}</code></pre>
             <p className="mut">
-              The seller forwards this header to <code>POST /api</code> with
-              either <code>serviceId</code> or the expected <code>seller</code>,{' '}
-              <code>amount</code>, and <code>mint</code>. The facilitator
-              rejects malformed, mismatched, expired, replayed, or unconfirmed
-              locks. It checks the funded vault and Locked escrow before the
-              handler can run.
+              The seller forwards the header to <code>POST /api</code> with
+              either a registered <code>serviceId</code> or explicit seller,
+              amount, and mint. GHOSTRAIL checks the buyer signature, exact
+              seller and price, credit vault balance, nonce, and replay status.
+              This verifies the authorization without charging yet.
             </p>
           </section>
 
           <section className="docs-section" aria-labelledby="docs-settlement">
-            <h2 id="docs-settlement">3. Run, release, and return the result</h2>
+            <h2 id="docs-settlement">3. Deliver, then charge</h2>
             <p className="mut">
-              Run the real resource handler only after the facilitator accepts
-              the payment with state <code>Locked</code>. If the handler
-              succeeds, the seller signs a release and sends it to{' '}
-              <code>PUT /api</code>. The response is returned after the release
-              is confirmed.
+              Run the handler after verification. If it succeeds, send the
+              verified transaction to <code>PUT /api</code> with
+              <code> action: &quot;charge&quot;</code>. The facilitator submits
+              the buyer-signed transaction and waits for confirmation before
+              returning the resource.
             </p>
             <pre className="docs-code"><code>{`const receipt = response.headers.get("X-PAYMENT-RESPONSE");
-// Base64-encoded x402 settlement response, including the release signature.
-const settlement = receipt
-  ? JSON.parse(atob(receipt))
-  : undefined;`}</code></pre>
+const settlement = receipt ? JSON.parse(atob(receipt)) : undefined;
+// settlement.transaction is the confirmed charge signature.`}</code></pre>
             <p className="mut">
-              The <code>X-PAYMENT-RESPONSE</code> value is a base64-encoded
-              settlement receipt. Its <code>transaction</code> field contains
-              the confirmed release signature. If the handler fails, do not
-              release; the funds stay Locked so the buyer can refund after the
-              timeout.
+              If the handler fails, do not submit the charge. The balance is
+              unchanged. The buyer can withdraw any unused USDC at any time
+              with <code>withdraw_credit</code>. Buyers pay devnet SOL fees for
+              deposits, charges, and withdrawals.
             </p>
           </section>
 
           <aside className="docs-callout">
-            <strong>Devnet demo requirements</strong>
+            <strong>Devnet demo</strong>
             <p className="mut">
-              The buyer needs devnet SOL for transaction fees and rent in this
-              flow. GHOSTRAIL is unaudited, and the custom escrow scheme is not
-              the built-in x402 exact-transfer SVM scheme. Registered services
-              remain unverified.
+              The updated Anchor program must be deployed before using prepaid
+              credit. GHOSTRAIL is unaudited, and registered services remain
+              unverified. Do not use real funds or mainnet.
             </p>
           </aside>
         </main>

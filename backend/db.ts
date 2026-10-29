@@ -240,7 +240,7 @@ export async function findPaymentBySignature(
 ): Promise<PaymentRecordRow | undefined> {
   await ensureDatabase();
   const result = await pool.query<PaymentRecordDbRow>(
-    "SELECT id, signature, buyer, seller, amount, mint, escrow_address, escrow_state, accepted, rejection_reason, created_at, settled_at FROM payment_records WHERE signature = $1 ORDER BY created_at DESC LIMIT 1",
+    "SELECT id, signature, buyer, seller, amount, mint, escrow_address, escrow_state, accepted, rejection_reason, created_at, settled_at FROM payment_records WHERE signature = $1 ORDER BY accepted DESC, created_at DESC LIMIT 1",
     [signature],
   );
   const row = result.rows[0];
@@ -275,6 +275,35 @@ export async function updatePaymentByEscrow(
     "UPDATE payment_records SET " +
       assignments.join(", ") +
       " WHERE escrow_address = $" +
+      values.length,
+    values,
+  );
+}
+
+/** Update one accepted prepaid-charge record after its charge is confirmed. */
+export async function updatePaymentBySignature(
+  signature: string,
+  update: { escrowState?: string; settledAt?: string },
+): Promise<void> {
+  await ensureDatabase();
+  const assignments: string[] = [];
+  const values: unknown[] = [];
+
+  if (update.escrowState !== undefined) {
+    values.push(update.escrowState);
+    assignments.push("escrow_state = $" + values.length);
+  }
+  if (update.settledAt !== undefined) {
+    values.push(update.settledAt);
+    assignments.push("settled_at = $" + values.length);
+  }
+  if (assignments.length === 0) return;
+
+  values.push(signature);
+  await pool.query(
+    "UPDATE payment_records SET " +
+      assignments.join(", ") +
+      " WHERE signature = $" +
       values.length,
     values,
   );

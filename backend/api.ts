@@ -3,8 +3,9 @@ import "server-only";
 import { findPaymentBySignature, getRecentPayments } from "./db";
 import { fetchEscrow } from "./escrow";
 import { getServicePaymentRequirements } from "./services";
+import { fetchCredit, settleCreditCharge, submitCreditDeposit, verifyCreditPayment } from "./prepaid";
 import { releaseEscrow, refundEscrow } from "./settlement";
-import { verifyAndSubmitPayment, verifyPayment } from "./verify";
+import { verifyPayment } from "./verify";
 
 /** Handle POST /api by verifying a payment transaction. */
 export async function handlePaymentPost(request: Request): Promise<Response> {
@@ -51,20 +52,6 @@ export async function handlePaymentPost(request: Request): Promise<Response> {
     let seller: string;
     let amount: string;
     let mint: string;
-    const maxTimeoutSeconds = fields.maxTimeoutSeconds;
-    if (
-      paymentTransaction &&
-      (typeof maxTimeoutSeconds !== "number" ||
-        !Number.isInteger(maxTimeoutSeconds) ||
-        maxTimeoutSeconds < 60 ||
-        maxTimeoutSeconds > 3600)
-    ) {
-      return Response.json(
-        { error: "X-PAYMENT requests require maxTimeoutSeconds from 60 to 3600" },
-        { status: 400 },
-      );
-    }
-
     if (typeof fields.serviceId === "string" && fields.serviceId) {
       // Auto-resolve seller, amount, and mint from the service registry.
       const requirements = await getServicePaymentRequirements(
@@ -102,13 +89,7 @@ export async function handlePaymentPost(request: Request): Promise<Response> {
     }
 
     const result = paymentTransaction
-      ? await verifyAndSubmitPayment(
-          transaction,
-          seller,
-          amount,
-          mint,
-          maxTimeoutSeconds as number,
-        )
+      ? await verifyCreditPayment(transaction, seller, amount, mint)
       : await verifyPayment(transaction, seller, amount, mint);
     return Response.json(result, { status: result.accepted ? 200 : 402 });
   } catch (err) {
@@ -175,10 +156,32 @@ export async function handleSettlementPut(request: Request): Promise<Response> {
         { status: 400 },
       );
     }
-    const { escrowAddress, action, transaction } = body as Record<
+    const { escrowAddress, creditAddress, signature, action, transaction } = body as Record<
       string,
       unknown
     >;
+
+    if (action === "deposit") {
+      if (typeof transaction !== "string" || !transaction) {
+        return Response.json({ error: "Missing signed deposit transaction" }, { status: 400 });
+      }
+      const result = await submitCreditDeposit(transaction);
+      return Response.json(result, { status: result.success ? 200 : 400 });
+    }
+    if (action === "charge") {
+      if (
+        typeof creditAddress !== "string" || !creditAddress ||
+        typeof signature !== "string" || !signature ||
+        typeof transaction !== "string" || !transaction
+      ) {
+        return Response.json(
+          { error: "Missing required fields: creditAddress, signature, transaction" },
+          { status: 400 },
+        );
+      }
+      const result = await settleCreditCharge(creditAddress, signature, transaction);
+      return Response.json(result, { status: result.success ? 200 : 400 });
+    }
 
     if (
       typeof escrowAddress !== "string" ||
@@ -221,6 +224,7 @@ export async function handleStatusGet(request: Request): Promise<Response> {
     const { searchParams } = new URL(request.url);
     const signature = searchParams.get("signature");
     const escrowAddress = searchParams.get("escrowAddress");
+    const creditAddress = searchParams.get("creditAddress");
 
     if (signature) {
       const record = await findPaymentBySignature(signature);
@@ -242,6 +246,14 @@ export async function handleStatusGet(request: Request): Promise<Response> {
         );
       }
       return Response.json(escrow);
+    }
+
+    if (creditAddress) {
+      const credit = await fetchCredit(creditAddress);
+      if (!credit) {
+        return Response.json({ error: "Credit account not found" }, { status: 404 });
+      }
+      return Response.json({ ...credit, balance: credit.balance.toString(), nextNonce: credit.nextNonce.toString() });
     }
 
     return Response.json(await getRecentPayments(50));

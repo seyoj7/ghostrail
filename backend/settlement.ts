@@ -145,15 +145,18 @@ async function settleEscrow(
         };
       }
     } else if (
-      instruction.keys.length !== 6 ||
+      instruction.keys.length !== 7 ||
       !instruction.keys[0].pubkey.equals(buyer) ||
       !instruction.keys[0].isSigner ||
       !instruction.keys[0].isWritable ||
-      !instruction.keys[1].pubkey.equals(mint) ||
-      !instruction.keys[2].pubkey.equals(escrowPubkey) ||
-      !instruction.keys[3].pubkey.equals(vaultPda) ||
-      !instruction.keys[4].isWritable ||
-      !isTokenProgram(instruction.keys[5].pubkey)
+      !instruction.keys[1].pubkey.equals(seller) ||
+      instruction.keys[1].isSigner ||
+      instruction.keys[1].isWritable ||
+      !instruction.keys[2].pubkey.equals(mint) ||
+      !instruction.keys[3].pubkey.equals(escrowPubkey) ||
+      !instruction.keys[4].pubkey.equals(vaultPda) ||
+      !instruction.keys[5].isWritable ||
+      !isTokenProgram(instruction.keys[6].pubkey)
     ) {
       return {
         success: false,

@@ -9,4 +9,3 @@ tsconfig.tsbuildinfo
 __pycache__/
 *.pyc
 test/
-services/

@@ -1,18 +1,19 @@
+skip_local_validator = true
+
 [toolchain]
-anchor_version = "0.32.1"
 
 [features]
 resolution = true
 skip-lint = false
 
 [programs.devnet]
-escrow = "8Fiwu4KaRzR88wwEUQbfnAdktDaWUtCQMhQKKHZLbVcw"
+escrow = "AwtzyMZqxncdqDgpXRnQ2s7Y6zKMmEA8YfCDdLqsPefM"
 
 [provider]
 cluster = "devnet"
-wallet = "C:/Users/Joyesh/.config/solana/ghostrail-devnet.json"
+wallet = '~\.config/solana/ghostrail.json'
 
-[workspace]
-members = ["."]
+[scripts]
+test = "cargo test"
 
 [hooks]

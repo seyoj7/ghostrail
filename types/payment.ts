@@ -11,7 +11,13 @@ export interface VerifyResult {
   /** Escrow PDA when the lock instruction was valid. */
   escrowAddress?: string;
   /** Verification state; this is not proof of settlement. */
-  state?: "Locked" | "Pre-submission";
+  state?: "Locked" | "Pre-submission" | "Prepaid";
+  /** Reusable buyer/seller credit PDA for an escrow-credit payment. */
+  creditAddress?: string;
+  /** Remaining credit in token base units before this call is charged. */
+  creditBalance?: string;
+  /** Original buyer-signed authorization transaction, returned for post-handler submission. */
+  transaction?: string;
 }
 
 /** Shape of a verify request from the seller to the facilitator. */

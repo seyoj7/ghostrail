@@ -153,6 +153,11 @@ async function submitAutomaticRefund(
     keys: [
       { pubkey: buyer.publicKey, isSigner: true, isWritable: true },
       {
+        pubkey: new PublicKey(escrow.seller),
+        isSigner: false,
+        isWritable: false,
+      },
+      {
         pubkey: new PublicKey(escrow.mint),
         isSigner: false,
         isWritable: false,

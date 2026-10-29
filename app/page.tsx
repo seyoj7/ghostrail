@@ -17,10 +17,9 @@ export default function Home() {
             Payments that settle. <br />Fees that vanish.
           </h1>
           <p className="mut hero-description">
-            AI agents and apps pay for APIs in devnet USDC. A buyer signs the
-            escrow lock and the facilitator confirms it before the API handler
-            runs. Buyers need devnet SOL for fees and rent; failed requests
-            remain refundable after the timeout.
+            AI agents and apps pay for APIs from reusable devnet USDC credit.
+            Buyers deposit once, then sign a nonce-protected charge for each
+            successful request. Buyers need devnet SOL for fees and rent.
           </p>
           <div className="hero-actions">
             <Link href="/dashboard" className="btn">
@@ -64,9 +63,9 @@ export default function Home() {
                   <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
                 </svg>
               </div>
-              <h3 className="architecture-card-title">Non-custodial escrow</h3>
+              <h3 className="architecture-card-title">Non-custodial credit</h3>
               <p className="architecture-card-desc">
-                USDC is locked directly in an on-chain Anchor program PDA. Neither the facilitator nor the fee-payer ever holds custody or authority over escrowed funds.
+                USDC is held in a buyer and seller specific Anchor PDA. The facilitator cannot spend it without a buyer-signed charge.
               </p>
             </div>
 
@@ -132,9 +131,9 @@ export default function Home() {
                   <line x1="10" y1="9" x2="8" y2="9" />
                 </svg>
               </div>
-              <h3 className="architecture-card-title">Guaranteed timeout refunds</h3>
+              <h3 className="architecture-card-title">Withdraw unused credit</h3>
               <p className="architecture-card-desc">
-                If an API fails or the timeout expires, buyers can independently reclaim 100% of their escrowed funds directly on-chain without seller or facilitator permission.
+                Buyers can withdraw unused prepaid USDC at any time. A failed API handler does not trigger a charge.
               </p>
             </div>
 
@@ -157,7 +156,7 @@ export default function Home() {
               </div>
               <h3 className="architecture-card-title">Devnet transaction fees</h3>
               <p className="architecture-card-desc">
-                The current buyer flow pays Solana transaction fees and escrow account rent in devnet SOL. Lock fee sponsorship is not wired into this x402 flow.
+                Buyers pay Solana transaction fees and account rent in devnet SOL for deposits, charges, and withdrawals.
               </p>
             </div>
 
@@ -177,9 +176,9 @@ export default function Home() {
                   <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
               </div>
-              <h3 className="architecture-card-title">Three-state deterministic lifecycle</h3>
+              <h3 className="architecture-card-title">Nonce-protected charges</h3>
               <p className="architecture-card-desc">
-                Escrows operate strictly across Locked, Released, and Refunded states. No unauthorized transitions, intermediate states, or backdoor withdrawals.
+                Each credit charge uses the next on-chain nonce and is limited to the seller and mint bound when the buyer deposits.
               </p>
             </div>
           </div>
@@ -195,18 +194,18 @@ export default function Home() {
           </h2>
           <p className="mut integration-copy">
             Return an x402 HTTP 402 challenge when a request has no
-            X-PAYMENT header. Forward the buyer&apos;s signed lock in that header
-            to the facilitator; it submits and confirms the escrow before your
-            handler runs. After success, sign a release and return the result
-            with X-PAYMENT-RESPONSE.
+            X-PAYMENT header. The buyer deposits reusable credit once, then
+            sends a buyer-signed charge authorization for each call. Verify it
+            with the facilitator, run the handler, and submit the charge only
+            after success.
           </p>
           <pre className="integration-code"><code>{`// 1. Request your resource and read the HTTP 402 x402 requirements
 const challenge = await fetch(resourceUrl, { method: "POST", body });
 const { accepts } = await challenge.json();
 const requirement = accepts[0];
 
-// 2. Build and buyer-sign the escrow lock from requirement fields
-const transaction = await signEscrowLock(requirement);
+// 2. Deposit credit once, then sign a charge for this call and its nonce
+const transaction = await signCreditCharge(requirement, nextNonce);
 const xPayment = btoa(JSON.stringify({
   x402Version: 1,
   scheme: "escrow",

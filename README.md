@@ -3,18 +3,17 @@
 GHOSTRAIL is a self-hosted, devnet-only payment facilitator prototype for
 x402-style USDC payments on Solana.
 
-The demo follows the x402 v1 HTTP header flow with a custom `escrow` scheme:
+The service demo follows the x402 v1 HTTP header flow with a custom `escrow` scheme
+and reusable prepaid credit:
 
-1. A request without `X-PAYMENT` receives HTTP 402 and an `accepts` array with the seller, asset, amount, program ID, and maximum timeout.
-2. The buyer signs a lock transaction and retries with a base64 x402 v1 `X-PAYMENT` header.
-3. GHOSTRAIL verifies, submits, and confirms the lock before the service handler runs.
-4. After the handler succeeds, the seller signs a release; GHOSTRAIL confirms it before returning the resource and `X-PAYMENT-RESPONSE` receipt.
-5. If the handler fails, the seller does not release the escrow. The buyer can refund after the timeout.
+1. A request without `X-PAYMENT` receives HTTP 402 with the per-call price and allowed deposit range.
+2. The buyer deposits 1–100 USDC once into a buyer/seller credit account. Repeated requests reuse its remaining balance.
+3. For each request, the buyer signs a charge authorization containing the exact price and an on-chain nonce.
+4. The service runs its real handler, then GHOSTRAIL submits and confirms that charge before returning the resource and `X-PAYMENT-RESPONSE` receipt.
+5. If the handler fails, the charge is not submitted and the prepaid balance is unchanged. The buyer can withdraw unused credit at any time.
 
-In the current demo, the buyer pays transaction fees and account rent in devnet SOL. Fee sponsorship for lock transactions is not wired into this x402 flow.
-
-GHOSTRAIL does not custody escrowed USDC. The Anchor smart contract controls the escrow
-vault PDA and enforces all release and refund authorizations.
+The buyer pays transaction fees and account rent in devnet SOL. GHOSTRAIL does not
+custody escrowed USDC: the Anchor program controls the prepaid credit vault PDA.
 
 > **Status:** This is an unaudited Solana devnet prototype. It is not a
 > production payment facilitator or delivery oracle. The escrow scheme is
@@ -27,7 +26,7 @@ vault PDA and enforces all release and refund authorizations.
 Buyer / AI agent
       |
       | 1. Discovers price via HTTP 402 or GET /api/services/:id
-      | 2. Signs lock transaction; retries with X-PAYMENT
+      | 2. Deposits credit once; signs per-call charge; retries with X-PAYMENT
       v
 Seller API
       |
@@ -38,24 +37,23 @@ Next.js API routes (GHOSTRAIL Facilitator)
       v
 Payment verifier
       |
-      | 4. Verifies, submits, and confirms lock before acceptance
+      | 4. Verifies credit and charge nonce before handler execution
       v
 PostgreSQL (Audit log & Replay protection)
       |
-      | 5. Service handler runs only after confirmed lock
+      | 5. Service handler runs before a charge is submitted
       v
-Seller-signed release OR buyer-signed refund
+Buyer-signed charge submitted after handler success
       |
-      | 6. Seller signs release; PUT /api adds facilitator fee-payer signature
       v
 Solana devnet
       |
       v
 Anchor escrow program
       |
-      +--> USDC released to seller (automatic or manual)
+      +--> USDC charged to seller from reusable credit
       |
-      +--> USDC refunded to buyer (after timeout if service fails)
+      +--> Unused USDC remains withdrawable by buyer
 ```
 
 ### Application layer
@@ -64,14 +62,13 @@ Anchor escrow program
 - `/` explains the system and shows the seller integration example.
 - `/dashboard` displays recent accepted and rejected verification records.
 - `/services` registers seller endpoints, wallets, and prices (generates Service IDs).
-- `/docs` describes the x402 escrow request flow.
+- `/docs` describes prepaid credit, per-call authorization, and withdrawal.
 
 ### Backend layer
 
 - [`backend/api.ts`](./backend/api.ts) implements the `/api` handlers.
-- [`backend/verify.ts`](./backend/verify.ts) validates buyer-signed lock
-  transactions; the x402 header path also submits and confirms them before
-  returning an accepted result.
+- [`backend/verify.ts`](./backend/verify.ts) validates the legacy single-call lock flow.
+- [`backend/prepaid.ts`](./backend/prepaid.ts) validates buyer-signed charges, submits deposits and successful charges, and reads credit accounts.
 - [`backend/settlement.ts`](./backend/settlement.ts) validates and submits
   seller-signed releases or buyer-signed refunds.
 - [`backend/services.ts`](./backend/services.ts) manages the service registry and auto-resolves token base units from USDC prices.
@@ -85,24 +82,26 @@ Anchor escrow program
 
 ### Blockchain layer
 
-[`escrow/src/lib.rs`](./escrow/src/lib.rs) is the Rust/Anchor program. It
-supports exactly three states:
+[`escrow/src/lib.rs`](./escrow/src/lib.rs) is the Rust/Anchor program. It keeps
+the original single-call lock instructions and adds reusable buyer/seller credit:
 
 ```text
-Locked -> Released
-Locked -> Refunded
+deposit 1–100 USDC (maximum balance 100 USDC)
+charge exact service price + sequential nonce
+withdraw remaining balance at any time
 ```
 
-The escrow PDA owns a vault PDA containing the locked USDC. The facilitator and
-fee payer cannot authorize either transition.
+The deterministic credit PDA owns a vault PDA. Each charge requires the buyer's
+signature and is limited to the stored seller and mint. The facilitator cannot
+authorize charges or withdrawals by itself.
 
 ## Payment lifecycle
 
-### 1. Discovery & Lock
+### 1. Discover price and create credit once
 
-The buyer calls the paid endpoint without `X-PAYMENT`. It returns HTTP 402 with
-a standard x402 v1 `accepts` entry. The escrow-specific program address is
-carried in the standard `extra` field:
+The buyer calls the paid endpoint without `X-PAYMENT`. The HTTP 402 `accepts`
+entry contains the per-call price, seller, USDC mint, program ID, and prepaid
+deposit bounds in `extra`:
 
 ```json
 {
@@ -112,127 +111,66 @@ carried in the standard `extra` field:
     "network": "solana-devnet",
     "maxAmountRequired": "10000",
     "resource": "http://127.0.0.1:8080/chat",
-    "description": "USDC payment held in GHOSTRAIL escrow",
+    "description": "Charge from reusable GHOSTRAIL USDC credit",
     "mimeType": "application/json",
     "payTo": "<seller public key>",
-    "maxTimeoutSeconds": 300,
     "asset": "<USDC mint>",
-    "extra": { "escrowProgramId": "<escrow program ID>" }
+    "extra": {
+      "escrowProgramId": "<escrow program ID>",
+      "creditModel": "prepaid",
+      "minDepositAmount": "1000000",
+      "maxBalanceAmount": "100000000"
+    }
   }]
 }
 ```
 
-The buyer creates and signs an Anchor `lock` instruction. Its data contains:
+Amounts use USDC's six-decimal base units. Each deposit must be 1–100 USDC,
+and the combined credit balance for a buyer/seller/mint cannot exceed 100 USDC.
+The credit PDA is deterministic:
 
 ```text
-8 bytes   Anchor instruction discriminator
-8 bytes   escrow ID
-8 bytes   USDC amount in base units
-8 bytes   timeout timestamp
+["credit", buyer public key, seller public key, mint]
 ```
 
-The escrow PDA is derived from:
+The buyer signs `deposit_credit` once (and can top up later). The facilitator
+confirms the deposit before the buyer retries. Repeated calls reuse the same
+credit account and vault.
 
-```text
-["escrow", buyer public key, escrow ID]
-```
+### 2. Authorize each call
 
-The vault PDA is derived from:
-
-```text
-["vault", escrow PDA]
-```
-
-The buyer signs the lock but does not submit it. The transaction is sent in the
-x402 `X-PAYMENT` header as a base64-encoded v1 payment payload whose
-`payload.transaction` field contains the base64-encoded signed Solana
-transaction. GHOSTRAIL submits the lock and waits for `confirmed` status before
-the resource handler is allowed to run. The transaction currently uses the
-buyer as fee payer, so the buyer needs devnet SOL for fees and rent.
-
-### 2. Verify and submit
-
-The paid service forwards the `X-PAYMENT` header and expected payment terms to:
-
-```text
-POST /api
-```
-
-For a registered service, the x402 request body supplies the service ID and
-timeout. The `X-PAYMENT` header contains this base64-encoded x402 v1 envelope:
+For each call, the buyer signs a `charge_credit` instruction containing the
+per-call amount and the credit account's next nonce. Its x402 v1 header carries
+the signed transaction:
 
 ```json
 {
   "x402Version": 1,
   "scheme": "escrow",
   "network": "solana-devnet",
-  "payload": { "transaction": "<base64 signed Solana transaction>" }
+  "payload": { "transaction": "<base64 buyer-signed charge transaction>" }
 }
 ```
 
-```json
-{
-  "serviceId": "<registered service UUID>",
-  "maxTimeoutSeconds": 300
-}
-```
+The seller forwards it to `POST /api` with `serviceId` (or explicit seller,
+amount, and mint). The facilitator verifies buyer signature, seller and mint,
+price, credit/vault addresses, nonce, on-chain balance, and transaction replay
+protection. This step does not submit the charge, so the service can still run
+before funds are deducted.
 
-With manual terms, provide `seller`, `amount`, `mint`, and
-`maxTimeoutSeconds` instead. Legacy JSON-body verification remains available for inspection, but does not submit a transaction.
+### 3. Run handler and charge only on success
 
-Legacy JSON-body verification accepts a transaction field with either a registered service ID or explicit payment terms. It only verifies and does not submit the transaction, so it must not be used to gate a paid resource.
+After the real handler succeeds, the seller submits the verified buyer
+authorization to `PUT /api` with `action: "charge"`. GHOSTRAIL submits and
+confirms the transaction, which transfers the service price from the credit
+vault to the seller and increments the nonce. The resource is returned only
+after confirmation, along with an `X-PAYMENT-RESPONSE` receipt containing the
+charge signature. If the handler fails, no charge transaction is submitted and
+the buyer's credit remains unchanged.
 
-The x402 header path verifies, submits, confirms, and then checks the resulting
-locked escrow before accepting payment. It never serves a resource for a
-`Pre-submission` result. Verification checks:
-
-- Transaction deserialization and signatures.
-- Allowed programs only.
-- Exactly one genuine escrow `lock` instruction.
-- Expected seller, mint, and amount.
-- Buyer signature.
-- Escrow and vault PDA derivation.
-- Timeout between 60 seconds and the requested `maxTimeoutSeconds` (up to 3,600).
-- Fee payer is not used as an escrow authority.
-- Compute-unit limits.
-- Previously failed transaction status.
-- Confirmed escrow account, vault ownership, vault mint, exact balance, and
-  `Locked` state before accepting x402 payment.
-- Database replay protection for accepted signatures.
-
-### 3. Settle
-
-After the real handler succeeds, the seller signs a release transaction and
-sends it to the facilitator via:
-
-```text
-PUT /api
-```
-
-```json
-{
-  "escrowAddress": "<escrow PDA>",
-  "action": "release",
-  "transaction": "<base64 partially signed transaction>"
-}
-```
-
-The facilitator confirms the release before the paid service returns the
-resource. The response includes `X-PAYMENT-RESPONSE`, a base64-encoded x402 v1
-settlement receipt whose `transaction` is the confirmed release signature. If
-the resource handler fails, the seller does not sign a release and the buyer
-can refund the still-locked escrow after timeout.
-
-For a timeout refund, the buyer signs a refund transaction after the timeout expires.
-
-| Action | Required authority | Destination |
-| --- | --- | --- |
-| Release | Seller | USDC transferred to Seller; rent returned to Buyer |
-| Refund | Buyer | USDC and rent returned to Buyer |
-
-The Anchor program performs the final authorization and token transfer. It
-closes the escrow and vault accounts after settlement, while PostgreSQL retains
-the application payment record and final state.
+The buyer may withdraw any unused amount at any time with `withdraw_credit`.
+The buyer signs and pays SOL fees for deposits, charges, and withdrawals. The
+facilitator cannot spend credit without a buyer-signed charge transaction.
 
 ## API reference
 
@@ -240,11 +178,12 @@ the application payment record and final state.
 
 | Method | Route | Description |
 | --- | --- | --- |
-| `POST` | `/api` | Verify a legacy JSON transaction, or accept `X-PAYMENT`, submit the lock, and wait for confirmation |
-| `PUT` | `/api` | Submit a seller release or buyer refund (facilitator co-signs fee) |
+| `POST` | `/api` | Verify a legacy lock or a buyer-signed prepaid charge authorization |
+| `PUT` | `/api` | Submit a buyer-signed credit deposit or post-handler charge; legacy release/refund remain available |
 | `GET` | `/api` | Return the 50 newest payment records |
 | `GET` | `/api?signature=...` | Find a payment record by signature |
 | `GET` | `/api?escrowAddress=...` | Read an escrow account from Solana |
+| `GET` | `/api?creditAddress=...` | Read a reusable prepaid credit balance from Solana |
 
 ### Service registry API
 
@@ -297,8 +236,8 @@ SELLER_PRIVATE_KEY=<base58-private-key>
 ```
 
 `SELLER_PRIVATE_KEY` must match the seller public key used by the paid service.
-`BUYER_PRIVATE_KEY` is used by the Python demo. The buyer currently needs
-devnet SOL for the lock transaction and account rent. Never commit or print
+`BUYER_PRIVATE_KEY` is used by the Python demo. The buyer needs devnet SOL for
+deposit, charge, and withdrawal transaction fees and account rent. Never commit or print
 private-key or API-key values.
 
 ### Anchor program
@@ -317,6 +256,8 @@ anchor deploy --provider.cluster devnet
 ```
 
 Keep the program ID synchronized across `escrow/src/lib.rs`, `escrow/Anchor.toml`, `escrow/idl/escrow.json`, and `.env`.
+The prepaid-credit instructions change the on-chain program; deploy the updated
+program to devnet before using the new buyer client.
 
 ---
 
@@ -332,9 +273,10 @@ python -m pip install -r scripts/requirements.txt
 
 An automated client demonstrating the x402 buyer journey:
 1. Calls the service and reads its HTTP 402 requirements.
-2. Builds and signs the escrow lock without submitting it.
-3. Retries with `X-PAYMENT`; the facilitator submits and confirms the lock.
-4. Receives the resource and decodes the `X-PAYMENT-RESPONSE` settlement receipt.
+2. Checks that the buyer has enough prepaid credit for the requested call.
+3. Signs a nonce-protected charge for this call and retries with `X-PAYMENT`.
+4. Receives the resource only after the handler succeeds and the charge is confirmed.
+5. Reuses the remaining balance on later calls.
 
 ```powershell
 # Run with default prompt
@@ -346,6 +288,34 @@ python test/buyer-client.py "Explain quantum computing in one sentence"
 # Or pass a custom service URL and prompt
 python test/buyer-client.py http://127.0.0.1:8080/chat "Hello world"
 ```
+
+Deposit prepaid credit separately (amount defaults to 1 USDC and must be between
+1 and 100 USDC):
+
+```powershell
+python test/deposit-credit.py <SELLER_PUBLIC_KEY> 1
+```
+
+The buyer client does not deposit automatically. It reports insufficient credit
+and shows the deposit command when the balance is too low.
+
+Check the current prepaid balance for a seller with:
+
+```powershell
+python test/check-credit.py <SELLER_PUBLIC_KEY>
+```
+
+This reports reusable prepaid credit; it does not include USDC in a legacy lock.
+
+Withdraw unused prepaid credit with the separate script (this does not contact the service):
+
+```powershell
+python test/withdraw-credit.py <SELLER_PUBLIC_KEY>
+```
+
+The script creates the buyer's USDC associated token account if it is missing,
+then submits a buyer-signed withdrawal. The buyer needs devnet SOL for transaction
+fees and, when needed, the token account's rent.
 
 ### 2. `test/lock-usdc.py` (Legacy Lock Helper)
 
@@ -360,6 +330,16 @@ python test/lock-usdc.py <SELLER_PUBLIC_WALLET> 0.05
 ```
 
 Outputs the confirmed Transaction signature, Escrow PDA, and Base64 transaction string.
+The buyer can refund a legacy lock after its timeout (five minutes in this demo)
+with the same buyer key used to create it:
+
+```powershell
+python test/refund-escrow.py <ESCROW_PDA>
+```
+
+Set `BUYER_PRIVATE_KEY` in the repository-root `.env` first. This refunds only
+the legacy lock; use `python test/withdraw-credit.py <SELLER_PUBLIC_KEY>` to
+withdraw unused prepaid credit.
 
 ### 3. `generate-keys.py` & `show-addresses.py`
 
@@ -375,18 +355,18 @@ wraps NVIDIA's OpenAI-compatible LLM endpoint behind GHOSTRAIL.
 
 ### Features
 - **HTTP 402 Gating**: Returns x402 v1 requirements if called without `X-PAYMENT`.
-- **Confirmed payment**: Forwards the x402 header to GHOSTRAIL, which submits and confirms the lock before the NVIDIA handler runs.
-- **Automated settlement**: After a successful handler result, signs the release with `SELLER_PRIVATE_KEY` and submits it through GHOSTRAIL. The response includes `X-PAYMENT-RESPONSE` with the release signature.
-- **Handler failures**: Do not trigger a release; the buyer can refund after the escrow timeout.
+- **Reusable payment**: Buyers deposit USDC once, then authorize each call with a buyer-signed, nonce-protected charge.
+- **Automated charge**: The service runs the NVIDIA handler first, then submits the charge through GHOSTRAIL. The response includes `X-PAYMENT-RESPONSE` with the confirmed charge signature.
+- **Handler failures**: Do not trigger a charge; the prepaid balance remains unchanged and is withdrawable by the buyer.
 
 ### Running the service
 
 Set the NVIDIA API key and service terms in the constants near the top of
-`services/nvidia/service.py`; that service does not read `.env`. Settlement
-loads blockchain settings and signing keys from the repository-root `.env`,
-regardless of the service's working directory. `SELLER_PRIVATE_KEY` must match
-the configured `SELLER_WALLET` (the buyer key is used as the demo fallback if
-it matches the seller). Then start the service:
+`services/nvidia/service.py`. The service reads `ESCROW_PROGRAM_ID` from the
+repository-root `.env` so its payment challenge matches the facilitator. The
+facilitator loads its blockchain settings and signs no buyer authorization;
+the buyer's signed charge is submitted only after successful delivery. Then
+start the service:
 
 ```powershell
 python services/nvidia/service.py
@@ -411,16 +391,15 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8080/chat `
 ## Security and scope limitations
 
 - Devnet only; the escrow program is unaudited.
-- Legacy JSON-only `POST /api` verification does not submit or confirm buyer transactions. The x402 `X-PAYMENT` path does both before running the paid handler.
-- The buyer pays the lock transaction fee and account rent; sponsored lock payments are not implemented in this flow.
-- The NVIDIA demo returns the resource only after its seller-signed release is confirmed.
+- Legacy one-call escrow helpers remain available. The prepaid x402 flow verifies a charge before running the handler and submits it only after handler success.
+- The buyer pays the deposit, charge, and account rent in devnet SOL; charge fee sponsorship is not implemented.
+- The NVIDIA demo returns the resource only after its buyer-authorized charge is confirmed.
 - Service registrations do not verify endpoint or wallet ownership.
 - Fee sponsorship helpers exist, but the complete sponsored lock flow is not
   wired into the main API.
 - The automatic refund worker is a demonstration mechanism, not a delivery
   oracle.
 - There is currently no `/attack-lab` implementation in the repository.
-- Automated tests are not yet present.
 
 ## Development commands
 

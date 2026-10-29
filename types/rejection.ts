@@ -36,4 +36,10 @@ export enum RejectionReason {
   TransactionFailed = "TRANSACTION_FAILED",
   /** Settlement (release/refund) failed on-chain. */
   SettlementFailed = "SETTLEMENT_FAILED",
+  /** The prepaid credit account is missing or not owned by the buyer/seller pair. */
+  CreditNotFound = "CREDIT_NOT_FOUND",
+  /** The prepaid credit has less than the requested service price. */
+  InsufficientCredit = "INSUFFICIENT_CREDIT",
+  /** The buyer-signed charge uses an out-of-date nonce. */
+  InvalidCreditNonce = "INVALID_CREDIT_NONCE",
 }
