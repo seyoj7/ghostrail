@@ -1,7 +1,7 @@
-/* ── Home Page Styles ────────────────────────────────────────────── */
+/* Home Page Styles*/
 .hero-block {
-  padding: 72px 0 56px;
-  max-width: 880px;
+  padding: 72px 0 96px;
+  max-width: 680px;
 }
 
 .hero-subtitle-tag {
@@ -22,7 +22,7 @@
   font-size: 19px;
   line-height: 1.6;
   margin: 0 0 32px;
-  max-width: 600px;
+  max-width: 680px;
 }
 
 .hero-actions {
@@ -31,7 +31,7 @@
   align-items: center;
 }
 
-/* ── Security & Escrow Architecture Section ──────────────────────── */
+/* Security & Escrow Architecture Section*/
 .architecture-section {
   position: relative;
   padding: 48px 36px 64px;
@@ -135,19 +135,60 @@
   font-size: 0.9em;
 }
 
-.integration-code {
-  overflow-x: auto;
-  padding: 18px;
+.integration-code-wrap {
+  position: relative;
+  overflow: hidden;
   border: 1px solid var(--border-card);
   border-radius: 10px;
   background: var(--bg-page);
+}
+
+.integration-code-toolbar {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  display: flex;
+  gap: 6px;
+}
+
+.integration-code-toggle {
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-mut);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.integration-code-toggle:hover {
+  color: var(--text-main);
+}
+
+.integration-code-toggle.is-active {
+  border-color: var(--border-card-hover);
+  background: var(--bg-card);
+  color: var(--text-main);
+}
+
+.integration-code {
+  overflow-x: auto;
+  padding: 12px 18px 18px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--text-main);
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.6;
 }
 
-.integration-register-link {
+.integration-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-top: 16px;
 }
 

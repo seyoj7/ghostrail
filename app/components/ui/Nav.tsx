@@ -47,6 +47,9 @@ export function Nav() {
           Docs
         </Link>
       </div>
+      <Link href="/playground" className="btn nav__playground">
+        Playground
+      </Link>
     </nav>
   );
 }
