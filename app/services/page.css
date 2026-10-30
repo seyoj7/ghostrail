@@ -132,6 +132,80 @@
   border-color: #554884;
 }
 
+.registration-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(5 7 16 / 76%);
+  backdrop-filter: blur(5px);
+}
+
+.registration-modal {
+  width: min(100%, 540px);
+  padding: 28px;
+  border: 1px solid var(--border-card-hover);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 48%);
+}
+
+.registration-modal h2 {
+  margin: 0 0 8px;
+  color: var(--text-main);
+  font-size: 22px;
+}
+
+.registration-modal > p {
+  margin: 0 0 22px;
+  line-height: 1.55;
+}
+
+.registration-modal-field {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  color: var(--text-mut);
+  font-size: 13px;
+}
+
+.registration-modal-field code {
+  padding: 12px;
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  background: var(--bg-page);
+  color: var(--text-main);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.registration-delete-key {
+  max-height: 140px;
+  overflow: auto;
+}
+
+.registration-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+@media (max-width: 480px) {
+  .registration-modal {
+    padding: 22px;
+  }
+
+  .registration-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .registration-modal-actions button {
+    width: 100%;
+  }
+}
+
 @media (max-width: 640px) {
   .service-form {
     grid-template-columns: 1fr;

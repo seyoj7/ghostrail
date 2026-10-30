@@ -1,10 +1,13 @@
 import "server-only";
 
+import { createHash, randomBytes } from "node:crypto";
 import { PublicKey } from "@solana/web3.js";
 import {
   addRegisteredService,
+  deleteRegisteredService,
   findServiceById,
   getRegisteredServices,
+  ServiceEndpointAlreadyRegisteredError,
 } from "./db";
 import type { ServicePaymentRequirements } from "../types/payment";
 
@@ -63,6 +66,30 @@ export async function getServiceById(serviceId: string): Promise<Response> {
 
 export async function listServices(): Promise<Response> {
   return Response.json(await getRegisteredServices());
+}
+
+/** Delete a service only when the caller has the secret returned at creation. */
+export async function removeService(
+  request: Request,
+  serviceId: string,
+): Promise<Response> {
+  const authorization = request.headers.get("authorization") ?? "";
+  const match = /^Bearer ([A-Fa-f0-9]{64})$/.exec(authorization);
+  if (!match) {
+    return Response.json(
+      { error: "A valid service deletion token is required" },
+      { status: 401 },
+    );
+  }
+  const tokenHash = createHash("sha256").update(match[1]).digest("hex");
+  const deleted = await deleteRegisteredService(serviceId, tokenHash);
+  if (!deleted) {
+    return Response.json(
+      { error: "Service not found or deletion token is invalid" },
+      { status: 404 },
+    );
+  }
+  return new Response(null, { status: 204 });
 }
 
 export async function registerService(request: Request): Promise<Response> {
@@ -150,12 +177,24 @@ export async function registerService(request: Request): Promise<Response> {
     );
   }
 
-  const service = await addRegisteredService({
-    name,
-    endpointUrl: endpoint.toString(),
-    sellerWallet: new PublicKey(sellerWallet).toBase58(),
-    priceUsdc,
-  });
+  const deleteToken = randomBytes(32).toString("hex");
+  let service: Awaited<ReturnType<typeof addRegisteredService>>;
+  try {
+    service = await addRegisteredService(
+      {
+        name,
+        endpointUrl: endpoint.toString(),
+        sellerWallet: new PublicKey(sellerWallet).toBase58(),
+        priceUsdc,
+      },
+      createHash("sha256").update(deleteToken).digest("hex"),
+    );
+  } catch (error) {
+    if (error instanceof ServiceEndpointAlreadyRegisteredError) {
+      return Response.json({ error: error.message }, { status: 409 });
+    }
+    throw error;
+  }
 
-  return Response.json(service, { status: 201 });
+  return Response.json({ ...service, deleteToken }, { status: 201 });
 }

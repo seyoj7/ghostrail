@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS registered_services (
   endpoint_url VARCHAR(2048) NOT NULL,
   seller_wallet VARCHAR(64) NOT NULL,
   price_usdc VARCHAR(80) NOT NULL,
+  delete_token_hash VARCHAR(64),
+  deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS registered_services_created_at_idx
@@ -69,6 +71,8 @@ async function ensureDatabase(): Promise<void> {
   globalForDb.databaseReady ??= (async () => {
     await pool.query(schemaSql);
     await pool.query("ALTER TABLE registered_services ADD COLUMN IF NOT EXISTS short_id VARCHAR(12)");
+    await pool.query("ALTER TABLE registered_services ADD COLUMN IF NOT EXISTS delete_token_hash VARCHAR(64)");
+    await pool.query("ALTER TABLE registered_services ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ");
     await pool.query(
       "UPDATE registered_services SET short_id = upper(substr(md5(random()::text || id::text), 1, 12)) WHERE short_id IS NULL OR short_id !~ '^[A-F0-9]{12}$'",
     );
@@ -115,6 +119,13 @@ export interface RegisteredService {
   sellerWallet: string;
   priceUsdc: string;
   createdAt: string;
+}
+
+export class ServiceEndpointAlreadyRegisteredError extends Error {
+  constructor() {
+    super("A service with this endpoint URL is already registered");
+    this.name = "ServiceEndpointAlreadyRegisteredError";
+  }
 }
 
 interface RegisteredServiceDbRow {
@@ -362,27 +373,62 @@ export async function getAutoRefundCandidates(): Promise<
 /** Register a seller's public service endpoint. */
 export async function addRegisteredService(
   service: Omit<RegisteredService, "id" | "createdAt">,
+  deleteTokenHash: string,
 ): Promise<RegisteredService> {
   await ensureDatabase();
-  const result = await pool.query<RegisteredServiceDbRow>(
-    "INSERT INTO registered_services (id, short_id, name, endpoint_url, seller_wallet, price_usdc) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, short_id, name, endpoint_url, seller_wallet, price_usdc, created_at",
-    [
-      crypto.randomUUID(),
-      randomBytes(6).toString("hex").toUpperCase(),
-      service.name,
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
       service.endpointUrl,
-      service.sellerWallet,
-      service.priceUsdc,
-    ],
+    ]);
+    const existing = await client.query(
+      "SELECT 1 FROM registered_services WHERE endpoint_url = $1 AND deleted_at IS NULL LIMIT 1",
+      [service.endpointUrl],
+    );
+    if (existing.rowCount) throw new ServiceEndpointAlreadyRegisteredError();
+
+    const result = await client.query<RegisteredServiceDbRow>(
+      "INSERT INTO registered_services (id, short_id, name, endpoint_url, seller_wallet, price_usdc, delete_token_hash) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, short_id, name, endpoint_url, seller_wallet, price_usdc, created_at",
+      [
+        crypto.randomUUID(),
+        randomBytes(6).toString("hex").toUpperCase(),
+        service.name,
+        service.endpointUrl,
+        service.sellerWallet,
+        service.priceUsdc,
+        deleteTokenHash,
+      ],
+    );
+    await client.query("COMMIT");
+    return mapRegisteredService(result.rows[0]);
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/** Delete a service only when its creator's secret token matches. */
+export async function deleteRegisteredService(
+  id: string,
+  deleteTokenHash: string,
+): Promise<boolean> {
+  if (!UUID_REGEX.test(id) && !SERVICE_ID_REGEX.test(id)) return false;
+  await ensureDatabase();
+  const result = await pool.query(
+    "UPDATE registered_services SET deleted_at = NOW() WHERE (id::text = $1 OR upper(short_id) = upper($1)) AND delete_token_hash = $2 AND deleted_at IS NULL",
+    [id, deleteTokenHash],
   );
-  return mapRegisteredService(result.rows[0]);
+  return result.rowCount === 1;
 }
 
 /** List seller service registrations. */
 export async function getRegisteredServices(): Promise<RegisteredService[]> {
   await ensureDatabase();
   const result = await pool.query<RegisteredServiceDbRow>(
-    "SELECT id, short_id, name, endpoint_url, seller_wallet, price_usdc, created_at FROM registered_services ORDER BY created_at DESC",
+    "SELECT id, short_id, name, endpoint_url, seller_wallet, price_usdc, created_at FROM registered_services WHERE deleted_at IS NULL ORDER BY created_at DESC",
   );
   return result.rows.map(mapRegisteredService);
 }
@@ -399,7 +445,7 @@ export async function findServiceById(
   }
   await ensureDatabase();
   const result = await pool.query<RegisteredServiceDbRow>(
-    "SELECT id, short_id, name, endpoint_url, seller_wallet, price_usdc, created_at FROM registered_services WHERE id::text = $1 OR upper(short_id) = upper($1)",
+    "SELECT id, short_id, name, endpoint_url, seller_wallet, price_usdc, created_at FROM registered_services WHERE (id::text = $1 OR upper(short_id) = upper($1)) AND deleted_at IS NULL",
     [id],
   );
   const row = result.rows[0];

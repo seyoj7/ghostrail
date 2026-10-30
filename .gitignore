@@ -9,6 +9,3 @@ tsconfig.tsbuildinfo
 __pycache__/
 test/
 services/
-ghostrail_sdk/
-ghostrail_sdk.egg-info/
-pyproject.toml

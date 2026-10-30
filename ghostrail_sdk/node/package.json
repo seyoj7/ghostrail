@@ -1,0 +1,19 @@
+{
+  "name": "ghosrail-sdk",
+  "version": "0.1.0",
+  "description": "Node.js buyer helpers for GHOSTRAIL prepaid credit",
+  "type": "module",
+  "exports": {
+    ".": "./buyer.js",
+    "./seller": "./seller.js"
+  },
+  "engines": {
+    "node": ">=20.6"
+  },
+  "dependencies": {
+    "@solana/spl-token": "^0.4.15",
+    "@solana/web3.js": "^1.99.0",
+    "bs58": "^6.0.0",
+    "ghostrail": "file:../.."
+  }
+}

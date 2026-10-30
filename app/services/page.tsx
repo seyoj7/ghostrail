@@ -13,6 +13,11 @@ interface RegisteredService {
   createdAt: string;
 }
 
+interface RegistrationKey {
+  serviceId: string;
+  deleteToken: string;
+}
+
 export default function ServicesPage() {
   const [services, setServices] = useState<RegisteredService[]>([]);
   const [name, setName] = useState("");
@@ -23,6 +28,7 @@ export default function ServicesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [registrationKey, setRegistrationKey] = useState<RegistrationKey | null>(null);
 
   const loadServices = useCallback(async () => {
     try {
@@ -37,7 +43,9 @@ export default function ServicesPage() {
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void loadServices(), 0);
+    const timer = window.setTimeout(() => {
+      void loadServices();
+    }, 0);
     return () => window.clearTimeout(timer);
   }, [loadServices]);
 
@@ -56,12 +64,14 @@ export default function ServicesPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Registration failed");
 
-      setServices((current) => [result, ...current]);
+      const { deleteToken, ...service } = result as RegisteredService & { deleteToken: string };
+      setServices((current) => [service, ...current]);
       setName("");
       setEndpointUrl("");
       setSellerWallet("");
       setPriceUsdc("");
       setNotice("Service registered.");
+      setRegistrationKey({ serviceId: service.id, deleteToken });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -77,6 +87,7 @@ export default function ServicesPage() {
         <p className="mut services-intro">
           List an existing API with its Solana seller wallet and devnet USDC price.
           Registration does not call or proxy your API, and does not verify ownership.
+          A one-time delete key appears after registration; save it if you may want to delete the service later.
         </p>
 
         <form className="card service-form" onSubmit={handleSubmit}>
@@ -91,7 +102,7 @@ export default function ServicesPage() {
             />
           </label>
           <label className="service-field">
-            <span>Service API URL</span>
+            <span>API Endpoint</span>
             <input
               required
               type="url"
@@ -172,6 +183,46 @@ export default function ServicesPage() {
             </article>
           ))}
         </section>
+        {registrationKey && (
+          <div className="registration-modal-backdrop">
+            <section
+              className="registration-modal card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="registration-modal-title"
+              aria-describedby="registration-modal-description"
+            >
+              <h2 id="registration-modal-title">Service registered</h2>
+              <p id="registration-modal-description" className="mut">
+                Copy and keep this delete key somewhere safe. It will only be shown once.
+              </p>
+              <div className="registration-modal-field">
+                <span>Service ID</span>
+                <code>{registrationKey.serviceId}</code>
+              </div>
+              <div className="registration-modal-field">
+                <span>Delete key</span>
+                <code className="registration-delete-key">{registrationKey.deleteToken}</code>
+              </div>
+              <div className="registration-modal-actions">
+                <button
+                  className="copy-btn"
+                  type="button"
+                  onClick={() => void navigator.clipboard.writeText(registrationKey.deleteToken)}
+                >
+                  Copy delete key
+                </button>
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={() => setRegistrationKey(null)}
+                >
+                  Done
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
       </div>
     </div>
   );
