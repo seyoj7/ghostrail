@@ -1,6 +1,7 @@
 import "server-only";
 
 import { Pool, type PoolClient } from "pg";
+import { randomBytes } from "node:crypto";
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -53,6 +54,7 @@ CREATE INDEX IF NOT EXISTS payment_records_created_at_idx
 
 CREATE TABLE IF NOT EXISTS registered_services (
   id UUID PRIMARY KEY,
+  short_id VARCHAR(12) UNIQUE,
   name VARCHAR(80) NOT NULL,
   endpoint_url VARCHAR(2048) NOT NULL,
   seller_wallet VARCHAR(64) NOT NULL,
@@ -66,6 +68,11 @@ CREATE INDEX IF NOT EXISTS registered_services_created_at_idx
 async function ensureDatabase(): Promise<void> {
   globalForDb.databaseReady ??= (async () => {
     await pool.query(schemaSql);
+    await pool.query("ALTER TABLE registered_services ADD COLUMN IF NOT EXISTS short_id VARCHAR(12)");
+    await pool.query(
+      "UPDATE registered_services SET short_id = upper(substr(md5(random()::text || id::text), 1, 12)) WHERE short_id IS NULL OR short_id !~ '^[A-F0-9]{12}$'",
+    );
+    await pool.query("CREATE UNIQUE INDEX IF NOT EXISTS registered_services_short_id_idx ON registered_services (short_id)");
   })();
 
   await globalForDb.databaseReady;
@@ -112,6 +119,7 @@ export interface RegisteredService {
 
 interface RegisteredServiceDbRow {
   id: string;
+  short_id: string;
   name: string;
   endpoint_url: string;
   seller_wallet: string;
@@ -147,7 +155,7 @@ function mapPaymentRecord(row: PaymentRecordDbRow): PaymentRecordRow {
 
 function mapRegisteredService(row: RegisteredServiceDbRow): RegisteredService {
   return {
-    id: row.id,
+    id: row.short_id,
     name: row.name,
     endpointUrl: row.endpoint_url,
     sellerWallet: row.seller_wallet,
@@ -357,9 +365,10 @@ export async function addRegisteredService(
 ): Promise<RegisteredService> {
   await ensureDatabase();
   const result = await pool.query<RegisteredServiceDbRow>(
-    "INSERT INTO registered_services (id, name, endpoint_url, seller_wallet, price_usdc) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, endpoint_url, seller_wallet, price_usdc, created_at",
+    "INSERT INTO registered_services (id, short_id, name, endpoint_url, seller_wallet, price_usdc) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, short_id, name, endpoint_url, seller_wallet, price_usdc, created_at",
     [
       crypto.randomUUID(),
+      randomBytes(6).toString("hex").toUpperCase(),
       service.name,
       service.endpointUrl,
       service.sellerWallet,
@@ -373,24 +382,24 @@ export async function addRegisteredService(
 export async function getRegisteredServices(): Promise<RegisteredService[]> {
   await ensureDatabase();
   const result = await pool.query<RegisteredServiceDbRow>(
-    "SELECT id, name, endpoint_url, seller_wallet, price_usdc, created_at FROM registered_services ORDER BY created_at DESC",
+    "SELECT id, short_id, name, endpoint_url, seller_wallet, price_usdc, created_at FROM registered_services ORDER BY created_at DESC",
   );
   return result.rows.map(mapRegisteredService);
 }
 
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SERVICE_ID_REGEX = /^[A-F0-9]{12}$/i;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Find a registered service by its ID. */
 export async function findServiceById(
   id: string,
 ): Promise<RegisteredService | undefined> {
-  if (!UUID_REGEX.test(id)) {
+  if (!UUID_REGEX.test(id) && !SERVICE_ID_REGEX.test(id)) {
     return undefined;
   }
   await ensureDatabase();
   const result = await pool.query<RegisteredServiceDbRow>(
-    "SELECT id, name, endpoint_url, seller_wallet, price_usdc, created_at FROM registered_services WHERE id = $1",
+    "SELECT id, short_id, name, endpoint_url, seller_wallet, price_usdc, created_at FROM registered_services WHERE id::text = $1 OR upper(short_id) = upper($1)",
     [id],
   );
   const row = result.rows[0];
