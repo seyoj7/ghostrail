@@ -1,7 +1,5 @@
 import { getServiceById, removeService } from "../../../../backend/services";
 
-export const runtime = "nodejs";
-
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
