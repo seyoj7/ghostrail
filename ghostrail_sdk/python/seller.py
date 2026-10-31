@@ -7,7 +7,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
-DEFAULT_FACILITATOR_URL = "https://ghostrail.discloud.app"
+DEFAULT_FACILITATOR_URL = "https://ghostrail-five.vercel.app"
 
 
 class Seller:

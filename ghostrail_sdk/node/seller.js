@@ -1,4 +1,4 @@
-const DEFAULT_FACILITATOR_URL = "https://ghostrail.discloud.app";
+const DEFAULT_FACILITATOR_URL = "https://ghostrail-five.vercel.app";
 
 /** Register a seller's service API and devnet USDC price with GHOSTRAIL. */
 export class Seller {

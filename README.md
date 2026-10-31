@@ -34,8 +34,8 @@ Ghostrail coordinates trustless, automated micropayments between autonomous agen
 │                             3. GHOSTRAIL FACILITATOR TIER                              │
 │  ┌───────────────────────┐  ┌─────────────────────────┐  ┌──────────────────────────┐  │
 │  │     API Gateways      │  │   Verification Engine   │  │   Settlement & Escrow    │  │
-│  │  • POST /api          │  │  • verify.ts            │  │  • settlement.ts         │  │
-│  │  • PUT /api           │  │  • prepaid.ts           │  │  • fee-sponsor.ts        │  │
+│  │  • POST /api/payments/verify │  │  • verify.ts            │  │  • settlement.ts         │  │
+│  │  • PUT /api/settlements│  │  • prepaid.ts           │  │  • fee-sponsor.ts        │  │
 │  │  • /api/services      │  │  • Disallowed Program   │  │  • refund-worker.ts      │  │
 │  │  • Dashboard & UI     │  │    & Nonce Guard        │  │  • Facilitator Co-sign   │  │
 │  └───────────┬───────────┘  └────────────┬────────────┘  └────────────┬─────────────┘  │
@@ -126,7 +126,7 @@ The complete transaction lifecycle proceeds across four deterministic phases:
 │          │      (amount + nonce)    │                              │                    │        │
 │          │                          │                              │                    │        │
 │          ├── 2. POST /resource ────►│                              │                    │        │
-│          │      (X-PAYMENT header)  ├── 3. POST /api (verify) ────►│                    │        │
+│          │      (X-PAYMENT header)  ├── 3. POST /api/payments/verify ─►│                 │        │
 │          │                          │      (payment payload)       ├── 4. Anti-replay   │        │
 │          │                          │                              │      DB check      │        │
 │          │                          │                              ├── 5. Query PDA ───►│        │
@@ -150,7 +150,7 @@ The complete transaction lifecycle proceeds across four deterministic phases:
 │          │                          │        (credit is untouched) │                    │        │
 │          │                          │                              │                    │        │
 │          │                          ├── 2. Handler Succeeded! ─────┼────────────────────┤        │
-│          │                          │      PUT /api (action: charge)                    │        │
+│          │                          │      PUT /api/settlements (action: charge)         │        │
 │          │                          │      (creditAddress, signature, tx)               │        │
 │          │                          │                              ├── 3. Broadcast ───►│        │
 │          │                          │                              │      charge_credit │        │
@@ -237,13 +237,15 @@ The Next.js server acts as a neutral facilitator:
 
 | Method   | Route                | Purpose                                                       |
 | -------- | -------------------- | ------------------------------------------------------------- |
-| `POST`   | `/api`               | Verify a buyer-signed payment (escrow lock or prepaid charge) |
-| `PUT`    | `/api`               | Submit settlement (release, refund, deposit, or charge)       |
-| `GET`    | `/api`               | Query payment by signature, escrow, credit, or list recent    |
+| `POST`   | `/api/payments/verify` | Verify a buyer-signed payment (escrow lock or prepaid charge) |
+| `PUT`    | `/api/settlements`   | Submit settlement (release, refund, deposit, or charge)       |
+| `GET`    | `/api/payments`      | Query payment by signature, escrow, credit, or list recent    |
 | `GET`    | `/api/services`      | List all registered services                                  |
 | `POST`   | `/api/services`      | Register a new service                                        |
 | `GET`    | `/api/services/[id]` | Get service details + payment requirements                    |
 | `DELETE` | `/api/services/[id]` | Delete a service (requires Bearer token)                      |
+
+The legacy `GET`, `POST`, and `PUT /api` endpoints remain available for existing integrations.
 
 ### Frontend (`app/`) 
 
@@ -297,10 +299,24 @@ The buyer locks USDC into a one-time escrow PDA with a timeout. The seller relea
 
 ### Prerequisites
 
-- Node.js ≥ 20.6
+- Node.js 26.x LTS
 - PostgreSQL database
 - Solana CLI + devnet SOL
 - Anchor CLI (to build/deploy the escrow program)
+
+### Deploy to Vercel
+
+Import this repository into Vercel and deploy it as a Next.js project. The production SDK base URL is `https://ghostrail-five.vercel.app` (override it with `FACILITATOR_URL` when using another deployment).
+
+Set these environment variables in the Vercel project before deploying:
+
+- `DATABASE_URL` — PostgreSQL connection string
+- `SOLANA_RPC_URL` — Solana devnet RPC URL
+- `ESCROW_PROGRAM_ID` and `USDC_MINT` — deployed devnet program and token mint addresses
+- `FACILITATOR_PRIVATE_KEY` and `FEE_PAYER_PRIVATE_KEY` — base58 secret keys used by settlement and fee sponsorship
+- `AUTO_REFUND_ENABLED=false` — Vercel functions do not run the persistent background refund worker; run that worker separately if automatic refunds are needed
+
+The app uses the Node.js runtime for blockchain and PostgreSQL API handlers. Vercel's standard Next.js build and output settings are sufficient; no custom output directory is required.
 
 ## Tech Stack
 

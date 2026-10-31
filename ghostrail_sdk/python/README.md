@@ -10,7 +10,7 @@ Install dependencies from the repository root:
 python -m pip install -e .
 ```
 
-Set `BUYER_PRIVATE_KEY` and `ESCROW_PROGRAM_ID` in the root `.env` file for buyer examples. The SDK defaults to `https://ghostrail.discloud.app`; set `FACILITATOR_URL` in `.env` only if you use another facilitator.
+Set `BUYER_PRIVATE_KEY` and `ESCROW_PROGRAM_ID` in the root `.env` file for buyer examples. The SDK defaults to `https://ghostrail-five.vercel.app`; set `FACILITATOR_URL` in `.env` only if you use another facilitator.
 
 ## Examples
 

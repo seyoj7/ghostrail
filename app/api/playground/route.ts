@@ -3,6 +3,8 @@ import { isIP } from "node:net";
 import * as http from "node:http";
 import * as https from "node:https";
 
+export const runtime = "nodejs";
+
 const MAX_BODY_BYTES = 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 15_000;
 

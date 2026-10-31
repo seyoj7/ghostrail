@@ -213,7 +213,7 @@ async def settle_escrow_action(
     program_id = Pubkey.from_string(required("ESCROW_PROGRAM_ID", os.getenv("ESCROW_PROGRAM_ID")))
     expected_mint = Pubkey.from_string(required("USDC_MINT", os.getenv("USDC_MINT")))
     escrow_address = Pubkey.from_string(escrow_address_str)
-    facilitator_url = os.getenv("FACILITATOR_URL", "https://ghostrail.discloud.app")
+    facilitator_url = os.getenv("FACILITATOR_URL", "https://ghostrail-five.vercel.app")
 
     async with AsyncClient(rpc_url, commitment=COMMITMENT) as client:
         escrow = parse_escrow(

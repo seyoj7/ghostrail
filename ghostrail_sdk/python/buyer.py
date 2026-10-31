@@ -88,7 +88,7 @@ async def send_transaction(client: AsyncClient, transaction: Transaction) -> str
     return str(response.value)
 
 def facilitator_request(url: str, method: str, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
-    return json_request(f"{url.rstrip('/')}/api", method, payload)
+    return json_request(f"{url.rstrip('/')}/api/settlements", method, payload)
 
 def json_request(url: str, method: str, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
     request = Request(url, method=method, headers={'Content-Type': 'application/json'}, data=json.dumps(payload).encode('utf-8'))
@@ -147,7 +147,7 @@ async def settle_escrow_action(action: str, escrow_address_str: str, authority: 
     program_id = Pubkey.from_string(required('ESCROW_PROGRAM_ID', os.getenv('ESCROW_PROGRAM_ID')))
     expected_mint = Pubkey.from_string(required('USDC_MINT', os.getenv('USDC_MINT')))
     escrow_address = Pubkey.from_string(escrow_address_str)
-    facilitator_url = os.getenv('FACILITATOR_URL', 'https://ghostrail.discloud.app')
+    facilitator_url = os.getenv('FACILITATOR_URL', 'https://ghostrail-five.vercel.app')
     async with AsyncClient(rpc_url, commitment=COMMITMENT) as client:
         escrow = parse_escrow(cast(Any, (await client.get_account_info(escrow_address, commitment=COMMITMENT)).value), str(escrow_address), program_id)
         buyer = escrow['buyer']
@@ -268,7 +268,7 @@ async def create_and_sign_credit_deposit(rpc_url: str, program_id: Pubkey, buyer
     return (transaction_base64(tx), credit)
 
 def submit_credit_deposit(facilitator_url: str, transaction_base64_value: str) -> dict[str, Any]:
-    status, payload = json_request(f"{facilitator_url.rstrip('/')}/api", 'PUT', {'action': 'deposit', 'transaction': transaction_base64_value})
+    status, payload = json_request(f"{facilitator_url.rstrip('/')}/api/settlements", 'PUT', {'action': 'deposit', 'transaction': transaction_base64_value})
     if status < 200 or status >= 300 or payload.get('success') is not True:
         raise RuntimeError(f'Prepaid USDC deposit failed: {payload}')
     return payload
@@ -397,7 +397,7 @@ async def _check_credit_main(seller_address: str | None=None, buyer_address: str
 
 DEVNET_USDC_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'
 
-FACILITATOR_URL = 'https://ghostrail.discloud.app'
+FACILITATOR_URL = 'https://ghostrail-five.vercel.app'
 
 MIN_CREDIT_DEPOSIT = 1000000
 

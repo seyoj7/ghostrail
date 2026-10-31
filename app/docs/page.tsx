@@ -42,7 +42,7 @@ const service = await new Seller().registerService({
 console.log("Service ID:", service.id);
 // Store service.deleteToken securely.`;
 
-const verifyExample = `const verification = await fetch(\`\${FACILITATOR_URL}/api\`, {
+const verifyExample = `const verification = await fetch(\`\${FACILITATOR_URL}/api/payments/verify\`, {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -57,7 +57,7 @@ if (!verification.ok || payment.accepted !== true) {
 }
 // Continue only after checking the verification result.`;
 
-const settleExample = `const settlement = await fetch(\`\${FACILITATOR_URL}/api\`, {
+const settleExample = `const settlement = await fetch(\`\${FACILITATOR_URL}/api/settlements\`, {
   method: "PUT",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
@@ -161,7 +161,7 @@ export default function DocsPage() {
                   Register your service and price with the Seller SDK. Your API
                   should return a 402 challenge when the request has no payment.
                   When it receives <code>X-PAYMENT</code>, forward the header to
-                  <code> POST /api</code> with the registered <code>serviceId</code>.
+                  <code> POST /api/payments/verify</code> with the registered <code>serviceId</code>.
                   The facilitator checks the buyer signature, seller, amount,
                   mint, balance, nonce, and replay status without charging yet.
                 </p>
@@ -171,7 +171,7 @@ export default function DocsPage() {
                   If verification succeeds, run your handler. If it fails, do
                   not deliver the paid resource. After a successful handler,
                   send the verified <code>creditAddress</code>, <code>signature</code>,
-                  and signed <code>transaction</code> to <code>PUT /api</code> with
+                  and signed <code>transaction</code> to <code>PUT /api/settlements</code> with
                   <code> action: "charge"</code>.
                 </p>
                 <pre className="docs-code"><code>{settleExample}</code></pre>

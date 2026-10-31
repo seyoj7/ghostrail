@@ -42,7 +42,7 @@ export default function DashboardPage() {
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api");
+      const res = await fetch("/api/payments");
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {

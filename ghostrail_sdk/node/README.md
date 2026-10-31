@@ -17,7 +17,7 @@ Install dependencies from the repository root:
 npm install --prefix ghostrail_sdk/node
 ```
 
-Set `BUYER_PRIVATE_KEY` and `ESCROW_PROGRAM_ID` in the root `.env` file for buyer examples. The SDK defaults to `https://ghostrail.discloud.app`; set `FACILITATOR_URL` in `.env` only if you use another facilitator.
+Set `BUYER_PRIVATE_KEY` and `ESCROW_PROGRAM_ID` in the root `.env` file for buyer examples. The SDK defaults to `https://ghostrail-five.vercel.app`; set `FACILITATOR_URL` in `.env` only if you use another facilitator.
 Node 20.6 or newer can load it with `--env-file=.env`.
 
 ## Examples
