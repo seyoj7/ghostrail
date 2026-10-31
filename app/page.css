@@ -1,4 +1,8 @@
 /* Home Page Styles*/
+.home-page {
+  padding-bottom: 0;
+}
+
 .hero-block {
   padding: 72px 0 96px;
   max-width: 680px;
@@ -29,6 +33,132 @@
   display: flex;
   gap: 14px;
   align-items: center;
+}
+
+/* ── How It Works Section ─────────────────────────────────────────── */
+.how-it-works-section {
+  position: relative;
+  padding: 48px 36px 64px;
+  margin-bottom: 56px;
+  border-radius: 24px;
+  background-color: rgba(13, 11, 22, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.how-it-works-header {
+  margin-bottom: 44px;
+}
+
+.how-it-works-eyebrow {
+  color: var(--text-accent);
+  margin-bottom: 12px;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+}
+
+.how-it-works-title {
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+  color: #ffffff;
+  margin-bottom: 16px;
+}
+
+.how-it-works-subtitle {
+  font-size: 17px;
+  color: var(--text-mut);
+  margin-bottom: 0;
+  max-width: 640px;
+  line-height: 1.55;
+}
+
+.how-it-works-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: rgba(255, 255, 255, 0.07);
+  gap: 1px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+}
+
+.how-step-card {
+  background: #0e0b19;
+  padding: 44px 34px 38px;
+  display: flex;
+  flex-direction: column;
+  transition: background 0.2s ease;
+}
+
+.how-step-card:hover {
+  background: #151124;
+}
+
+.how-step-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.how-step-num {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  background: var(--color-primary);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.how-step-tag {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-accent);
+  background: rgba(167, 139, 250, 0.12);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+.how-step-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  margin-bottom: 12px;
+}
+
+.how-step-desc {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #9a93b5;
+  margin: 0 0 28px;
+  flex-grow: 1;
+}
+
+.how-step-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+  color: var(--text-mut);
+}
+
+.how-step-pill {
+  color: var(--text-accent);
+  background: rgba(167, 139, 250, 0.12);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(167, 139, 250, 0.25);
 }
 
 /* Security & Escrow Architecture Section*/
@@ -109,7 +239,17 @@
 }
 
 .integration-card {
-  margin-bottom: 32px;
+  margin-bottom: 56px;
+}
+
+.home-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 48px;
+  border-top: 1px solid var(--border-card);
+  color: var(--text-mut);
+  font-size: 12px;
 }
 
 .integration-eyebrow {
@@ -231,6 +371,18 @@
 }
 
 @media (max-width: 980px) {
+  .how-it-works-section {
+    padding: 36px 24px 48px;
+  }
+  .how-it-works-title {
+    font-size: 38px;
+  }
+  .how-it-works-grid {
+    grid-template-columns: 1fr;
+  }
+  .how-step-card {
+    padding: 32px 24px;
+  }
   .architecture-section {
     padding: 36px 24px 48px;
   }
@@ -260,6 +412,18 @@
 }
 
 @media (max-width: 640px) {
+  .home-footer {
+    min-height: 44px;
+    gap: 12px;
+    font-size: 11px;
+  }
+
+  .how-it-works-section {
+    padding: 28px 16px 36px;
+  }
+  .how-it-works-title {
+    font-size: 28px;
+  }
   .architecture-section {
     padding: 28px 16px 36px;
   }

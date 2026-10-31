@@ -35,7 +35,7 @@
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   gap: 20px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .playground-form,

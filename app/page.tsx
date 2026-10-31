@@ -5,7 +5,7 @@ import { SdkCodeSnippet } from "./components/ui/SdkCodeSnippet";
 
 export default function Home() {
   return (
-    <div className="pg">
+    <div className="pg home-page">
       <div className="in">
         <Nav />
 
@@ -32,7 +32,76 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Security, Escrow & Control Architecture */}
+        {/* ── How It Works Section ───────────────────────────────────── */}
+        <section
+          className="how-it-works-section"
+          aria-labelledby="how-it-works-title"
+        >
+          <div className="how-it-works-header">
+            <div className="mono how-it-works-eyebrow">WORKFLOW &amp; LIFECYCLE</div>
+            <h2 className="how-it-works-title" id="how-it-works-title">
+              How it works
+            </h2>
+            <p className="how-it-works-subtitle">
+              Deposit once, authorize off-chain with sequential nonces, and
+              settle only when API delivery succeeds.
+            </p>
+          </div>
+
+          <div className="how-it-works-grid">
+            <div className="how-step-card">
+              <div className="how-step-badge">
+                <span className="mono how-step-num">01</span>
+                <span className="how-step-tag">DEPOSIT</span>
+              </div>
+              <h3 className="how-step-title">Deposit USDC credit</h3>
+              <p className="how-step-desc">
+                Fund an Anchor PDA vault on Solana devnet once. Credit is bound to
+                you, the seller, and the token mint. It remains strictly
+                non-custodial and withdrawable anytime.
+              </p>
+              <div className="how-step-footer mono">
+                <span>One-time tx</span>
+                <span className="how-step-pill">Solana Devnet</span>
+              </div>
+            </div>
+
+            <div className="how-step-card">
+              <div className="how-step-badge">
+                <span className="mono how-step-num">02</span>
+                <span className="how-step-tag">AUTHORIZE</span>
+              </div>
+              <h3 className="how-step-title">Sign off-chain nonce</h3>
+              <p className="how-step-desc">
+                When calling an API, receive an HTTP 402 challenge. Your agent
+                signs a charge authorization using the next sequential nonce and
+                retries in milliseconds with zero per-call gas fees.
+              </p>
+              <div className="how-step-footer mono">
+                <span>x402 Protocol</span>
+                <span className="how-step-pill">Zero Gas</span>
+              </div>
+            </div>
+
+            <div className="how-step-card">
+              <div className="how-step-badge">
+                <span className="mono how-step-num">03</span>
+                <span className="how-step-tag">SETTLE</span>
+              </div>
+              <h3 className="how-step-title">Settle on delivery</h3>
+              <p className="how-step-desc">
+                The seller executes their API handler first. Only when upstream
+                data is delivered successfully does the facilitator settle the
+                charge on-chain. Failed requests are never charged.
+              </p>
+              <div className="how-step-footer mono">
+                <span>Atomic charge</span>
+                <span className="how-step-pill">Fairness Guaranteed</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section
           className="architecture-section"
           aria-labelledby="architecture-title"
@@ -235,6 +304,11 @@ export default function Home() {
             </a>
           </div>
         </section>
+
+        <footer className="home-footer">
+          <span>© Ghostrail</span>
+          <span>x402 facilitator for Solana</span>
+        </footer>
       </div>
     </div>
   );

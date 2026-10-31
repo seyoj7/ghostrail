@@ -171,10 +171,28 @@ export default function DashboardPage() {
                     )}`
                   : "none";
 
+                const sellerShort = record.seller
+                  ? `${record.seller.slice(0, 4)}...${record.seller.slice(-3)}`
+                  : "none";
+
                 return (
                   <div className="row" key={record.id}>
                     <span className="mono mut">{timeStr}</span>
-                    <span>{record.seller.slice(0, 11)}...</span>
+                    <span className="mono tx-hash">
+                      {record.seller ? (
+                        <a
+                          href={`https://explorer.solana.com/address/${record.seller}?cluster=devnet`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="tx-hash-link"
+                          title={record.seller}
+                        >
+                          {sellerShort}
+                        </a>
+                      ) : (
+                        "none"
+                      )}
+                    </span>
                     <span>{formatUsdc(record.amount)} USDC</span>
                     <span>
                       <span className={isOk ? "ok" : "bad"}>{statusLabel}</span>
