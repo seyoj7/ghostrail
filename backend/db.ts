@@ -3,28 +3,28 @@ import "server-only";
 import { Pool, type PoolClient } from "pg";
 import { randomBytes } from "node:crypto";
 
-const databaseUrl = process.env.DATABASE_URL;
-
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL is required");
-}
-
 const globalForDb = globalThis as unknown as {
   pool: Pool | undefined;
   databaseReady: Promise<void> | undefined;
 };
 
-export const pool =
-  globalForDb.pool ??
-  new Pool({
+function getPool(): Pool {
+  if (globalForDb.pool) return globalForDb.pool;
+
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL is required");
+  }
+
+  const pool = new Pool({
     connectionString: databaseUrl,
     max: 1,
     idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 5_000,
   });
 
-if (process.env.NODE_ENV !== "production") {
   globalForDb.pool = pool;
+  return pool;
 }
 
 const schemaSql = `
@@ -71,6 +71,7 @@ CREATE INDEX IF NOT EXISTS registered_services_created_at_idx
 `;
 
 async function ensureDatabase(): Promise<void> {
+  const pool = getPool();
   globalForDb.databaseReady ??= (async () => {
     await pool.query(schemaSql);
     await pool.query("ALTER TABLE registered_services ADD COLUMN IF NOT EXISTS short_id VARCHAR(12)");
@@ -213,6 +214,7 @@ export async function recordAcceptedPayment(
   record: PaymentRecordInput,
 ): Promise<boolean> {
   await ensureDatabase();
+  const pool = getPool();
   const client = await pool.connect();
 
   try {
@@ -239,6 +241,7 @@ export async function addPaymentRecord(
   record: PaymentRecordInput,
 ): Promise<void> {
   await ensureDatabase();
+  const pool = getPool();
   await pool.query(
     "INSERT INTO payment_records (id, signature, buyer, seller, amount, mint, escrow_address, escrow_state, accepted, rejection_reason) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
     [
@@ -261,6 +264,7 @@ export async function findPaymentBySignature(
   signature: string,
 ): Promise<PaymentRecordRow | undefined> {
   await ensureDatabase();
+  const pool = getPool();
   const result = await pool.query<PaymentRecordDbRow>(
     "SELECT id, signature, buyer, seller, amount, mint, escrow_address, escrow_state, accepted, rejection_reason, created_at, settled_at FROM payment_records WHERE signature = $1 ORDER BY accepted DESC, created_at DESC LIMIT 1",
     [signature],
@@ -275,6 +279,7 @@ export async function updatePaymentByEscrow(
   update: { escrowState?: string; settledAt?: string },
 ): Promise<void> {
   await ensureDatabase();
+  const pool = getPool();
   const assignments: string[] = [];
   const values: unknown[] = [];
 
@@ -308,6 +313,7 @@ export async function updatePaymentBySignature(
   update: { escrowState?: string; settledAt?: string },
 ): Promise<void> {
   await ensureDatabase();
+  const pool = getPool();
   const assignments: string[] = [];
   const values: unknown[] = [];
 
@@ -336,6 +342,7 @@ export async function getRecentPayments(
   limit = 50,
 ): Promise<PaymentRecordRow[]> {
   await ensureDatabase();
+  const pool = getPool();
   const result = await pool.query<PaymentRecordDbRow>(
     "SELECT id, signature, buyer, seller, amount, mint, escrow_address, escrow_state, accepted, rejection_reason, created_at, settled_at FROM payment_records ORDER BY created_at DESC LIMIT $1",
     [limit],
@@ -353,6 +360,7 @@ export async function getAutoRefundCandidates(): Promise<
   AutoRefundCandidate[]
 > {
   await ensureDatabase();
+  const pool = getPool();
   const result = await pool.query<{
     escrow_address: string;
     seller: string;
@@ -379,6 +387,7 @@ export async function addRegisteredService(
   deleteTokenHash: string,
 ): Promise<RegisteredService> {
   await ensureDatabase();
+  const pool = getPool();
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -420,6 +429,7 @@ export async function deleteRegisteredService(
 ): Promise<boolean> {
   if (!UUID_REGEX.test(id) && !SERVICE_ID_REGEX.test(id)) return false;
   await ensureDatabase();
+  const pool = getPool();
   const result = await pool.query(
     "UPDATE registered_services SET deleted_at = NOW() WHERE (id::text = $1 OR upper(short_id) = upper($1)) AND delete_token_hash = $2 AND deleted_at IS NULL",
     [id, deleteTokenHash],
@@ -430,6 +440,7 @@ export async function deleteRegisteredService(
 /** List seller service registrations. */
 export async function getRegisteredServices(): Promise<RegisteredService[]> {
   await ensureDatabase();
+  const pool = getPool();
   const result = await pool.query<RegisteredServiceDbRow>(
     "SELECT id, short_id, name, endpoint_url, seller_wallet, price_usdc, created_at FROM registered_services WHERE deleted_at IS NULL ORDER BY created_at DESC",
   );
@@ -447,6 +458,7 @@ export async function findServiceById(
     return undefined;
   }
   await ensureDatabase();
+  const pool = getPool();
   const result = await pool.query<RegisteredServiceDbRow>(
     "SELECT id, short_id, name, endpoint_url, seller_wallet, price_usdc, created_at FROM registered_services WHERE (id::text = $1 OR upper(short_id) = upper($1)) AND deleted_at IS NULL",
     [id],

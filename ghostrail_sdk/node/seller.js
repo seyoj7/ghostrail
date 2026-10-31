@@ -1,4 +1,4 @@
-const DEFAULT_FACILITATOR_URL = "http://127.0.0.1:3000";
+const DEFAULT_FACILITATOR_URL = "https://ghostrail.discloud.app";
 
 /** Register a seller's service API and devnet USDC price with GHOSTRAIL. */
 export class Seller {

@@ -147,7 +147,7 @@ async def settle_escrow_action(action: str, escrow_address_str: str, authority: 
     program_id = Pubkey.from_string(required('ESCROW_PROGRAM_ID', os.getenv('ESCROW_PROGRAM_ID')))
     expected_mint = Pubkey.from_string(required('USDC_MINT', os.getenv('USDC_MINT')))
     escrow_address = Pubkey.from_string(escrow_address_str)
-    facilitator_url = os.getenv('FACILITATOR_URL', 'http://localhost:3000')
+    facilitator_url = os.getenv('FACILITATOR_URL', 'https://ghostrail.discloud.app')
     async with AsyncClient(rpc_url, commitment=COMMITMENT) as client:
         escrow = parse_escrow(cast(Any, (await client.get_account_info(escrow_address, commitment=COMMITMENT)).value), str(escrow_address), program_id)
         buyer = escrow['buyer']
@@ -397,7 +397,7 @@ async def _check_credit_main(seller_address: str | None=None, buyer_address: str
 
 DEVNET_USDC_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'
 
-FACILITATOR_URL = 'http://127.0.0.1:3000'
+FACILITATOR_URL = 'https://ghostrail.discloud.app'
 
 MIN_CREDIT_DEPOSIT = 1000000
 

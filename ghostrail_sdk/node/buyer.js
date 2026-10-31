@@ -102,7 +102,7 @@ export class Ghostrail {
     rpcUrl = process.env.SOLANA_RPC_URL || DEFAULT_SOLANA_RPC_URL,
     programId = process.env.ESCROW_PROGRAM_ID,
     mint = process.env.USDC_MINT || DEVNET_USDC_MINT,
-    facilitatorUrl = process.env.FACILITATOR_URL || "http://127.0.0.1:3000",
+    facilitatorUrl = process.env.FACILITATOR_URL || "https://ghostrail.discloud.app",
   } = {}) {
     this.connection = new Connection(requireValue("SOLANA_RPC_URL", rpcUrl), COMMITMENT);
     this.programId = asPublicKey(programId, "ESCROW_PROGRAM_ID");
