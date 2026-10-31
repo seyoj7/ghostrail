@@ -42,33 +42,30 @@ export default function PlaygroundPage() {
 
     setLoading(true);
     try {
-      const headers = new Headers({ "Content-Type": "application/json" });
-      if (payment.trim()) headers.set("X-PAYMENT", payment.trim());
-      const response = await fetch(parsedEndpoint, {
+      const response = await fetch("/api/playground", {
         method: "POST",
-        headers,
-        body: JSON.stringify({ prompt }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          endpoint: parsedEndpoint.toString(),
+          prompt,
+          payment: payment.trim() || undefined,
+        }),
         cache: "no-store",
       });
-      const rawBody = await response.text();
-      let body = rawBody;
-      try {
-        body = JSON.stringify(JSON.parse(rawBody), null, 2);
-      } catch {
-        // Keep non-JSON service responses readable as plain text.
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || `Request failed (${response.status}).`);
       }
       setResult({
-        status: response.status,
-        statusText: response.statusText,
-        body,
-        receipt: response.headers.get("X-PAYMENT-RESPONSE"),
+        status: data.status,
+        statusText: data.statusText,
+        body: data.body,
+        receipt: data.receipt,
       });
     } catch (requestError) {
       const message =
         requestError instanceof Error ? requestError.message : String(requestError);
-      setError(
-        `${message} Check that the endpoint is reachable and allows browser requests with CORS.`,
-      );
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -184,11 +181,12 @@ export default function PlaygroundPage() {
 
           <aside className="playground-note">
             <p className="mut">
-              Need to create a buyer-signed payment? Use the Node.js or Python
-              SDK from your own environment so your wallet key stays private.
-              Your service must allow <code>Content-Type</code> and{" "}
-              <code>X-PAYMENT</code> in CORS, and expose{" "}
-              <code>X-PAYMENT-RESPONSE</code> for paid calls.
+              The playground forwards requests from the server, so the service
+              does not need browser CORS support. The service must be publicly
+              reachable over HTTP or HTTPS; local and private network addresses
+              are blocked. To create a buyer-signed payment, use the Node.js or
+              Python SDK from your own environment so your wallet key stays
+              private.
             </p>
             <Link href="/docs" className="playground-docs-link">
               Read the integration guide

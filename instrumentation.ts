@@ -7,6 +7,13 @@ export async function register(): Promise<void> {
     return;
   }
 
+  if (process.env.VERCEL === "1") {
+    console.warn(
+      "Automatic refunds are disabled on Vercel; run the refund worker as a persistent service.",
+    );
+    return;
+  }
+
   const required = [
     "DATABASE_URL",
     "SOLANA_RPC_URL",

@@ -245,12 +245,13 @@ The Next.js server acts as a neutral facilitator:
 | `GET`    | `/api/services/[id]` | Get service details + payment requirements                    |
 | `DELETE` | `/api/services/[id]` | Delete a service (requires Bearer token)                      |
 
-### Frontend (`app/`) — 🚧 Work in Progress
+### Frontend (`app/`) 
 
-- **Landing page** — Hero section, architecture feature cards, seller integration code example
-- **Dashboard** — Live payment records table with stats (verified, rejected, volume)
-- **Services** — Registration form with modal showing one-time delete token
-- **Docs** — Integration guide covering the x402 challenge → deposit → charge flow
+- **Landing page** — Product overview, architecture features, and seller integration example
+- **Dashboard** — Payment records and verified, rejected, and volume statistics
+- **Services** — Service registration and deletion with a one-time delete token
+- **Playground** — Inspect x402 payment challenges and try buyer-signed requests
+- **Docs** — Integration guide for the x402 challenge → deposit → charge flow
 
 ### Client SDKs (`ghostrail_sdk/`)
 
