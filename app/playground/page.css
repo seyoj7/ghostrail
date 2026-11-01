@@ -1,3 +1,4 @@
+/* Playground Page Styles */
 .playground-page {
   max-width: 1120px;
   margin: 0 auto;
@@ -17,12 +18,15 @@
   margin-bottom: 12px;
   font-size: clamp(34px, 6vw, 48px);
   line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .playground-intro {
   max-width: 760px;
   font-size: 16px;
   line-height: 1.65;
+  color: var(--text-mut);
 }
 
 .playground-intro code {
@@ -123,6 +127,7 @@
 
 .playground-output-heading h2 {
   font-size: 18px;
+  font-weight: 700;
 }
 
 .playground-status {
@@ -144,6 +149,7 @@
 .playground-response {
   max-height: 420px;
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 16px;
   border: 1px solid var(--border-card);
   border-radius: 8px;
@@ -195,24 +201,114 @@
   color: var(--text-main);
 }
 
+/* ── Responsive Breakpoints ───────────────────────────────────────── */
+
 @media (max-width: 800px) {
   .playground-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 600px) {
   .playground-page {
-    padding-top: 28px;
+    padding-top: 20px;
+    padding-bottom: 36px;
+  }
+
+  .playground-header {
+    margin-bottom: 20px;
+  }
+
+  .playground-eyebrow {
+    font-size: 10.5px;
+    margin-bottom: 6px;
+  }
+
+  .playground-title {
+    font-size: clamp(24px, 6vw, 32px);
+    line-height: 1.15;
+    margin-bottom: 8px;
+  }
+
+  .playground-intro {
+    font-size: 13.5px;
+    line-height: 1.55;
   }
 
   .playground-form,
   .playground-output {
-    padding: 18px;
+    padding: 16px 14px;
+    border-radius: 12px;
+  }
+
+  .playground-field {
+    gap: 6px;
+    margin-bottom: 14px;
+    font-size: 13px;
+  }
+
+  .playground-field input,
+  .playground-field textarea {
+    padding: 9px 11px;
+    font-size: 13px;
+    border-radius: 7px;
+  }
+
+  .playground-field small {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .playground-submit {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    min-height: 44px;
+  }
+
+  .playground-output-heading {
+    margin-bottom: 10px;
+  }
+
+  .playground-output-heading h2 {
+    font-size: 16px;
+  }
+
+  .playground-placeholder {
+    min-height: 70px;
+    font-size: 13px;
+  }
+
+  .playground-response {
+    max-height: 280px;
+    padding: 12px;
+    font-size: 11px;
+    line-height: 1.5;
+    border-radius: 8px;
+  }
+
+  .playground-receipt {
+    font-size: 11px;
+    gap: 4px;
+    margin-top: 10px;
   }
 
   .playground-note {
-    align-items: flex-start;
+    align-items: stretch;
     flex-direction: column;
+    padding: 14px 12px;
+    border-radius: 10px;
+    margin-top: 14px;
+    gap: 10px;
+  }
+
+  .playground-note p {
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .playground-docs-link {
+    font-size: 12px;
   }
 }

@@ -41,6 +41,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 a {
@@ -202,7 +203,11 @@ button {
 }
 
 @media (max-width: 640px) {
+  .in {
+    padding: 0 16px;
+  }
   .nav {
+    padding: 16px 0;
     grid-template-columns: 1fr auto;
     gap: 16px;
   }
@@ -218,5 +223,7 @@ button {
   .nav__playground {
     grid-column: 2;
     grid-row: 1;
+    padding: 8px 14px;
+    font-size: 13px;
   }
 }

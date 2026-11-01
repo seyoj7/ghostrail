@@ -1,4 +1,4 @@
-/*Dashboard Page Styles*/
+/* Dashboard Page Styles */
 .dashboard-heading {
   margin: 24px 0 24px;
   font-size: 32px;
@@ -15,6 +15,7 @@
 .stat-card {
   flex: 1;
   min-width: 0;
+  transition: border-color 0.15s ease;
 }
 
 .stat-label {
@@ -26,6 +27,14 @@
   font-weight: 700;
   margin-top: 8px;
   line-height: 1.1;
+}
+
+.stat-val-volume {
+  word-break: break-word;
+}
+
+.payments-card {
+  margin-bottom: 40px;
 }
 
 .payments-card-header {
@@ -65,6 +74,19 @@
   cursor: not-allowed;
 }
 
+.dashboard-table-header {
+  border-top: 0 !important;
+  font-size: 13px;
+}
+
+.payment-cell {
+  min-width: 0;
+}
+
+.mobile-meta-label {
+  display: none;
+}
+
 .tx-hash {
   color: var(--text-accent);
 }
@@ -73,8 +95,29 @@
   color: var(--text-accent);
   text-decoration: none;
 }
+
 .tx-hash-link:hover {
   text-decoration: underline;
+}
+
+.status-pill {
+  display: inline-block;
+  font-weight: 500;
+}
+
+.status-pill.ok {
+  color: var(--color-ok);
+}
+
+.status-pill.bad {
+  color: var(--color-bad);
+}
+
+.payment-empty-row {
+  padding: 24px 0;
+  text-align: center;
+  font-size: 14px;
+  border-top: 1px solid var(--border-card);
 }
 
 .spinner {
@@ -92,16 +135,140 @@
   }
 }
 
-@media (max-width: 800px) {
-  .stats-row {
-    flex-direction: column;
+/* ── Mobile & Tablet Responsiveness ───────────────────────────────── */
+
+@media (max-width: 768px) {
+  .dashboard-heading {
+    margin: 16px 0 16px;
+    font-size: 24px;
   }
-  .row {
-    grid-template-columns: 80px 1fr 1fr;
+
+  /* Compact 2x2 Grid for Stats */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .stat-card {
+    padding: 12px 14px;
+    border-radius: 12px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .stat-val {
+    font-size: 22px;
+    margin-top: 4px;
+  }
+
+  .stat-val-volume {
+    font-size: 16px;
+    line-height: 1.2;
+  }
+
+  /* Compact Payments Card */
+  .payments-card {
+    padding: 16px 14px;
+    border-radius: 14px;
+    margin-bottom: 24px;
+  }
+
+  .payments-card-header {
+    margin-bottom: 10px;
+  }
+
+  .payments-title {
+    font-size: 15px;
+  }
+
+  .refresh-action-btn {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+
+  /* Hide Desktop Table Header */
+  .dashboard-table-header {
+    display: none !important;
+  }
+
+  .mobile-meta-label {
+    display: inline;
+    font-size: 11px;
+  }
+
+  /* Mobile Payment Record Card / List View */
+  .payment-record-row {
+    display: grid !important;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "amount status"
+      "seller tx"
+      "time time";
+    row-gap: 5px;
+    column-gap: 8px;
+    padding: 12px 0;
+    align-items: center;
     font-size: 13px;
   }
-  .row > span:nth-child(4),
-  .row > span:nth-child(5) {
-    grid-column: span 3;
+
+  .payment-cell-amount {
+    grid-area: amount;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text-main);
+  }
+
+  .payment-cell-status {
+    grid-area: status;
+    justify-self: end;
+  }
+
+  .status-pill {
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .status-pill.ok {
+    background: rgba(74, 222, 128, 0.12);
+    border: 1px solid rgba(74, 222, 128, 0.25);
+  }
+
+  .status-pill.bad {
+    background: rgba(248, 113, 113, 0.12);
+    border: 1px solid rgba(248, 113, 113, 0.25);
+  }
+
+  .payment-cell-seller {
+    grid-area: seller;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .payment-cell-tx {
+    grid-area: tx;
+    justify-self: end;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .payment-cell-time {
+    grid-area: time;
+    font-size: 11px;
+    color: var(--text-mut);
+  }
+
+  .payment-empty-row {
+    padding: 20px 0;
+    font-size: 13px;
   }
 }

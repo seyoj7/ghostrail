@@ -14,7 +14,7 @@ export default function Home() {
             x402 facilitator for Solana
           </div>
           <h1 className="hero-title">
-            Payments that settle. <br />
+            Payments that settle. <br className="hero-break" />
             Fees that vanish.
           </h1>
           <p className="mut hero-description">
@@ -75,11 +75,11 @@ export default function Home() {
               <p className="how-step-desc">
                 When calling an API, receive an HTTP 402 challenge. Your agent
                 signs a charge authorization using the next sequential nonce and
-                retries in milliseconds with zero per-call gas fees.
+                retries in milliseconds with zero on-chain latency.
               </p>
               <div className="how-step-footer mono">
                 <span>x402 Protocol</span>
-                <span className="how-step-pill">Zero Gas</span>
+                <span className="how-step-pill">Off-Chain Auth</span>
               </div>
             </div>
 
@@ -96,7 +96,7 @@ export default function Home() {
               </p>
               <div className="how-step-footer mono">
                 <span>Atomic charge</span>
-                <span className="how-step-pill">Fairness Guaranteed</span>
+                <span className="how-step-pill">Pay on Success</span>
               </div>
             </div>
           </div>

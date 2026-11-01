@@ -1,6 +1,9 @@
+/* Services Page Styles */
 .services-heading {
   margin: 24px 0 10px;
   font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .services-intro {
@@ -61,6 +64,7 @@
 .service-list-heading {
   margin-bottom: 16px;
   font-size: 22px;
+  font-weight: 700;
 }
 
 .service-entry {
@@ -78,11 +82,15 @@
 
 .service-entry-header h3 {
   font-size: 17px;
+  font-weight: 700;
 }
 
 .service-unverified {
   color: var(--text-mut);
   font-size: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 7px;
+  border-radius: 4px;
 }
 
 .service-entry > a {
@@ -97,11 +105,13 @@
   flex-wrap: wrap;
   color: var(--text-mut);
   font-size: 13px;
+  gap: 16px;
 }
 
 .service-id-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   margin-top: 12px;
   padding-top: 12px;
@@ -120,7 +130,7 @@
   color: var(--text-accent);
   border: 1px solid var(--border-card-hover);
   border-radius: 6px;
-  padding: 4px 10px;
+  padding: 5px 12px;
   font-size: 12px;
   font-family: var(--font-mono);
   cursor: pointer;
@@ -192,32 +202,133 @@
   margin-top: 24px;
 }
 
+/* ── Mobile Responsiveness ────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .services-heading {
+    margin: 16px 0 8px;
+    font-size: 24px;
+  }
+
+  .services-intro {
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+
+  .service-form {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 16px 14px;
+    border-radius: 14px;
+  }
+
+  .service-field {
+    gap: 6px;
+    font-size: 13px;
+  }
+
+  .service-field input {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  .service-form-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  .service-submit {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    min-height: 44px;
+  }
+
+  .service-message {
+    font-size: 13px;
+    text-align: center;
+  }
+
+  .service-list {
+    margin-top: 24px;
+  }
+
+  .service-list-heading {
+    font-size: 18px;
+    margin-bottom: 12px;
+  }
+
+  .service-entry {
+    padding: 14px 14px;
+    margin-bottom: 10px;
+    border-radius: 12px;
+  }
+
+  .service-entry-header h3 {
+    font-size: 15px;
+  }
+
+  .service-entry > a {
+    margin: 8px 0;
+    font-size: 13px;
+  }
+
+  .service-entry-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    font-size: 12px;
+  }
+
+  .service-id-row {
+    margin-top: 8px;
+    padding-top: 8px;
+    gap: 8px;
+  }
+
+  .service-id-value {
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: calc(100% - 80px);
+  }
+
+  .copy-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+    min-height: 28px;
+  }
+}
+
 @media (max-width: 480px) {
   .registration-modal {
-    padding: 22px;
+    padding: 18px 16px;
+    border-radius: 14px;
+  }
+
+  .registration-modal h2 {
+    font-size: 19px;
+  }
+
+  .registration-modal-field code {
+    padding: 10px;
+    font-size: 11.5px;
   }
 
   .registration-modal-actions {
     flex-direction: column-reverse;
+    gap: 8px;
+    margin-top: 18px;
   }
 
   .registration-modal-actions button {
     width: 100%;
-  }
-}
-
-@media (max-width: 640px) {
-  .service-form {
-    grid-template-columns: 1fr;
-  }
-
-  .service-entry-meta {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .service-id-row {
-    flex-direction: column;
-    align-items: flex-start;
+    justify-content: center;
+    text-align: center;
+    min-height: 42px;
   }
 }

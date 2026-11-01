@@ -101,11 +101,13 @@ export default function DashboardPage() {
           </div>
           <div className="card stat-card">
             <div className="mut stat-label">Accepted volume</div>
-            <div className="mut stat-val">{formatUsdc(acceptedVolume)} USDC</div>
+            <div className="mut stat-val stat-val-volume">
+              {formatUsdc(acceptedVolume)} USDC
+            </div>
           </div>
         </div>
 
-        <div className="card">
+        <div className="card payments-card">
           <div className="payments-card-header">
             <div className="payments-title">Recent payments</div>
             <button
@@ -148,7 +150,7 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          <div className="row mut" style={{ borderTop: 0, fontSize: "13px" }}>
+          <div className="dashboard-table-header row mut">
             <span>Time</span>
             <span>Seller</span>
             <span>Amount</span>
@@ -157,72 +159,85 @@ export default function DashboardPage() {
           </div>
 
           {records.map((record) => {
-                const timeStr = new Date(record.createdAt).toLocaleTimeString();
-                const isOk = record.accepted;
-                const statusLabel = isOk
-                  ? record.escrowState
-                    ? record.escrowState
-                    : "Verified"
-                  : `Rejected: ${record.rejectionReason ?? "invalid"}`;
+            const timeStr = new Date(record.createdAt).toLocaleTimeString();
+            const isOk = record.accepted;
+            const statusLabel = isOk
+              ? record.escrowState
+                ? record.escrowState
+                : "Verified"
+              : `Rejected: ${record.rejectionReason ?? "invalid"}`;
 
-                const sigShort = record.signature
-                  ? `${record.signature.slice(0, 4)}...${record.signature.slice(
-                      -3
-                    )}`
-                  : "none";
+            const sigShort = record.signature
+              ? `${record.signature.slice(0, 4)}...${record.signature.slice(
+                  -3
+                )}`
+              : "none";
 
-                const sellerShort = record.seller
-                  ? `${record.seller.slice(0, 4)}...${record.seller.slice(-3)}`
-                  : "none";
+            const sellerShort = record.seller
+              ? `${record.seller.slice(0, 4)}...${record.seller.slice(-3)}`
+              : "none";
 
-                return (
-                  <div className="row" key={record.id}>
-                    <span className="mono mut">{timeStr}</span>
-                    <span className="mono tx-hash">
-                      {record.seller ? (
-                        <a
-                          href={`https://explorer.solana.com/address/${record.seller}?cluster=devnet`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="tx-hash-link"
-                          title={record.seller}
-                        >
-                          {sellerShort}
-                        </a>
-                      ) : (
-                        "none"
-                      )}
-                    </span>
-                    <span>{formatUsdc(record.amount)} USDC</span>
-                    <span>
-                      <span className={isOk ? "ok" : "bad"}>{statusLabel}</span>
-                    </span>
-                    <span className="mono tx-hash">
-                      {record.signature && record.signature !== "none" ? (
-                        <a
-                          href={`https://explorer.solana.com/tx/${record.signature}?cluster=devnet`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="tx-hash-link"
-                        >
-                          {sigShort}
-                        </a>
-                      ) : (
-                        "none"
-                      )}
-                    </span>
-                  </div>
-                );
-              })}
+            return (
+              <div className="row payment-record-row" key={record.id}>
+                <div className="payment-cell payment-cell-time mono mut">
+                  <span className="mobile-meta-label">Time: </span>
+                  {timeStr}
+                </div>
+                <div className="payment-cell payment-cell-seller mono tx-hash">
+                  <span className="mobile-meta-label mut">Seller: </span>
+                  {record.seller ? (
+                    <a
+                      href={`https://explorer.solana.com/address/${record.seller}?cluster=devnet`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="tx-hash-link"
+                      title={record.seller}
+                    >
+                      {sellerShort}
+                    </a>
+                  ) : (
+                    "none"
+                  )}
+                </div>
+                <div className="payment-cell payment-cell-amount">
+                  <span className="payment-amount-val">
+                    {formatUsdc(record.amount)} USDC
+                  </span>
+                </div>
+                <div className="payment-cell payment-cell-status">
+                  <span className={`status-pill ${isOk ? "ok" : "bad"}`}>
+                    {statusLabel}
+                  </span>
+                </div>
+                <div className="payment-cell payment-cell-tx mono tx-hash">
+                  <span className="mobile-meta-label mut">Tx: </span>
+                  {record.signature && record.signature !== "none" ? (
+                    <a
+                      href={`https://explorer.solana.com/tx/${record.signature}?cluster=devnet`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="tx-hash-link"
+                    >
+                      {sigShort}
+                    </a>
+                  ) : (
+                    "none"
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
           {!loading && loadError && (
-            <div className="row">Could not load payment records.</div>
+            <div className="payment-empty-row mut">
+              Could not load payment records.
+            </div>
           )}
           {!loading && !loadError && records.length === 0 && (
-            <div className="row">No payment records yet.</div>
+            <div className="payment-empty-row mut">No payment records yet.</div>
           )}
         </div>
       </div>
     </div>
   );
 }
-

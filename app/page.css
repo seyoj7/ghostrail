@@ -1,4 +1,4 @@
-/* Home Page Styles*/
+/* Home Page Styles */
 .home-page {
   padding-bottom: 0;
 }
@@ -20,6 +20,7 @@
   line-height: 1.05;
   font-weight: 700;
   letter-spacing: -0.02em;
+  word-break: break-word;
 }
 
 .hero-description {
@@ -63,6 +64,7 @@
   letter-spacing: -0.025em;
   color: #ffffff;
   margin-bottom: 16px;
+  word-break: break-word;
 }
 
 .how-it-works-subtitle {
@@ -114,6 +116,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .how-step-tag {
@@ -133,6 +136,7 @@
   color: #ffffff;
   letter-spacing: -0.01em;
   margin-bottom: 12px;
+  word-break: break-word;
 }
 
 .how-step-desc {
@@ -159,9 +163,10 @@
   padding: 3px 8px;
   border-radius: 4px;
   border: 1px solid rgba(167, 139, 250, 0.25);
+  white-space: nowrap;
 }
 
-/* Security & Escrow Architecture Section*/
+/* Security & Escrow Architecture Section */
 .architecture-section {
   position: relative;
   padding: 48px 36px 64px;
@@ -182,6 +187,7 @@
   letter-spacing: -0.025em;
   color: #ffffff;
   margin-bottom: 16px;
+  word-break: break-word;
 }
 
 .architecture-subtitle {
@@ -229,6 +235,7 @@
   color: #ffffff;
   letter-spacing: -0.01em;
   margin-bottom: 12px;
+  word-break: break-word;
 }
 
 .architecture-card-desc {
@@ -238,34 +245,30 @@
   margin: 0;
 }
 
+/* Seller Integration Section */
 .integration-card {
   margin-bottom: 56px;
-}
-
-.home-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 48px;
-  border-top: 1px solid var(--border-card);
-  color: var(--text-mut);
-  font-size: 12px;
 }
 
 .integration-eyebrow {
   color: var(--text-accent);
   margin-bottom: 10px;
+  font-size: 13px;
+  letter-spacing: 0.05em;
 }
 
 .integration-title {
   font-size: 24px;
+  font-weight: 700;
   margin-bottom: 10px;
+  word-break: break-word;
 }
 
 .integration-copy {
   max-width: 880px;
   line-height: 1.6;
   margin-bottom: 18px;
+  font-size: 15px;
 }
 
 .integration-copy code {
@@ -284,15 +287,16 @@
 }
 
 .integration-code-toolbar {
-  position: absolute;
-  top: 8px;
-  right: 12px;
   display: flex;
+  justify-content: flex-end;
   gap: 6px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border-card);
 }
 
 .integration-code-toggle {
-  padding: 5px 10px;
+  padding: 6px 12px;
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
@@ -300,6 +304,7 @@
   font-family: var(--font-sans);
   font-size: 12px;
   line-height: 1.2;
+  transition: all 0.15s ease;
 }
 
 .integration-code-toggle:hover {
@@ -314,7 +319,8 @@
 
 .integration-code {
   overflow-x: auto;
-  padding: 12px 18px 18px;
+  -webkit-overflow-scrolling: touch;
+  padding: 14px 18px 18px;
   margin: 0;
   border: 0;
   border-radius: 0;
@@ -370,9 +376,22 @@
   margin-top: 4px;
 }
 
+.home-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 48px;
+  border-top: 1px solid var(--border-card);
+  color: var(--text-mut);
+  font-size: 12px;
+}
+
+/* ── Responsive Breakpoints ───────────────────────────────────────── */
+
+/* Tablet (max-width: 980px) */
 @media (max-width: 980px) {
   .how-it-works-section {
-    padding: 36px 24px 48px;
+    padding: 36px 24px 44px;
   }
   .how-it-works-title {
     font-size: 38px;
@@ -384,7 +403,7 @@
     padding: 32px 24px;
   }
   .architecture-section {
-    padding: 36px 24px 48px;
+    padding: 36px 24px 44px;
   }
   .architecture-title {
     font-size: 38px;
@@ -398,8 +417,11 @@
 }
 
 @media (max-width: 900px) {
+  .hero-block {
+    padding: 56px 0 68px;
+  }
   .hero-title {
-    font-size: 40px;
+    font-size: 44px;
   }
   .status-card {
     flex-direction: column;
@@ -411,29 +433,175 @@
   }
 }
 
+/* Mobile & Small Tablets (max-width: 640px) */
 @media (max-width: 640px) {
-  .home-footer {
-    min-height: 44px;
-    gap: 12px;
-    font-size: 11px;
+  .hero-block {
+    padding: 36px 0 44px;
+  }
+  .hero-subtitle-tag {
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+  .hero-title {
+    font-size: clamp(28px, 7.5vw, 36px);
+    line-height: 1.15;
+    margin-bottom: 16px;
+    letter-spacing: -0.02em;
+  }
+  .hero-break {
+    display: none;
+  }
+  .hero-description {
+    font-size: 15px;
+    line-height: 1.55;
+    margin-bottom: 24px;
+  }
+  .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .hero-actions .btn,
+  .hero-actions .btn2 {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    padding: 13px 18px;
+    min-height: 46px;
   }
 
   .how-it-works-section {
-    padding: 28px 16px 36px;
+    padding: 24px 16px 28px;
+    margin-bottom: 36px;
+    border-radius: 18px;
+  }
+  .how-it-works-header {
+    margin-bottom: 24px;
+  }
+  .how-it-works-eyebrow {
+    font-size: 11px;
+    margin-bottom: 8px;
   }
   .how-it-works-title {
-    font-size: 28px;
+    font-size: clamp(24px, 6vw, 30px);
+    line-height: 1.2;
+    margin-bottom: 10px;
   }
+  .how-it-works-subtitle {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .how-it-works-grid {
+    border-radius: 14px;
+  }
+  .how-step-card {
+    padding: 22px 16px 20px;
+  }
+  .how-step-badge {
+    margin-bottom: 14px;
+  }
+  .how-step-title {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+  .how-step-desc {
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0 0 18px;
+  }
+  .how-step-footer {
+    padding-top: 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .how-step-pill {
+    font-size: 11px;
+  }
+
   .architecture-section {
-    padding: 28px 16px 36px;
+    padding: 24px 16px 28px;
+    margin-bottom: 36px;
+    border-radius: 18px;
+  }
+  .architecture-header {
+    margin-bottom: 24px;
   }
   .architecture-title {
-    font-size: 28px;
+    font-size: clamp(24px, 6vw, 30px);
+    line-height: 1.2;
+    margin-bottom: 10px;
+  }
+  .architecture-subtitle {
+    font-size: 14px;
+    line-height: 1.5;
   }
   .architecture-grid {
     grid-template-columns: 1fr;
+    border-radius: 14px;
   }
   .architecture-card {
-    padding: 32px 20px;
+    padding: 22px 16px;
+  }
+  .architecture-icon {
+    margin-bottom: 16px;
+    height: 32px;
+  }
+  .architecture-icon svg {
+    width: 28px;
+    height: 28px;
+  }
+  .architecture-card-title {
+    font-size: 17px;
+    margin-bottom: 6px;
+  }
+  .architecture-card-desc {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .integration-card {
+    padding: 20px 16px;
+    margin-bottom: 36px;
+    border-radius: 18px;
+  }
+  .integration-eyebrow {
+    font-size: 11px;
+    margin-bottom: 8px;
+  }
+  .integration-title {
+    font-size: 22px;
+    margin-bottom: 8px;
+  }
+  .integration-copy {
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+  .integration-code {
+    font-size: 12px;
+    padding: 12px 14px;
+  }
+  .integration-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .integration-actions .btn2 {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    padding: 13px 18px;
+    min-height: 46px;
+  }
+
+  .home-footer {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    min-height: auto;
+    padding: 20px 0 32px;
+    gap: 8px;
+    font-size: 12px;
   }
 }
