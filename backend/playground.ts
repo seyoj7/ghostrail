@@ -1,3 +1,5 @@
+import "server-only";
+
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import * as http from "node:http";
@@ -136,7 +138,7 @@ async function forwardRequest(
   });
 }
 
-export async function POST(request: Request) {
+export async function handlePlaygroundPost(request: Request) {
   const origin = request.headers.get("origin");
   if (origin) {
     const requestHost = request.headers.get("host");

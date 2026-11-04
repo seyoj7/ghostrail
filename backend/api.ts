@@ -2,10 +2,65 @@ import "server-only";
 
 import { findPaymentBySignature, getRecentPayments } from "./db";
 import { fetchEscrow } from "./escrow";
-import { getServicePaymentRequirements } from "./services";
+import { handlePlaygroundPost } from "./playground";
 import { fetchCredit, settleCreditCharge, submitCreditDeposit, verifyCreditPayment } from "./prepaid";
 import { releaseEscrow, refundEscrow } from "./settlement";
+import {
+  getServiceById,
+  getServicePaymentRequirements,
+  listServices,
+  registerService,
+  removeService,
+} from "./services";
 import { verifyPayment } from "./verify";
+
+/** Dispatch API requests by URL and method. */
+export async function handleApiRequest(request: Request): Promise<Response> {
+  const { pathname } = new URL(request.url);
+  const path = pathname.replace(/\/$/, "") || "/";
+  const method = request.method.toUpperCase();
+
+  if (path === "/api" && method === "GET") return handleStatusGet(request);
+  if (path === "/api" && method === "POST") return handlePaymentPost(request);
+  if (path === "/api" && method === "PUT") return handleSettlementPut(request);
+  if (path === "/api/payments" && method === "GET") return handleStatusGet(request);
+  if (path === "/api/payments/verify" && method === "POST") return handlePaymentPost(request);
+  if (path === "/api/settlements" && method === "PUT") return handleSettlementPut(request);
+  if (path === "/api/playground" && method === "POST") return handlePlaygroundPost(request);
+  if (path === "/api/services" && method === "GET") return listServices();
+  if (path === "/api/services" && method === "POST") return registerService(request);
+
+  const serviceMatch = /^\/api\/services\/([^/]+)$/.exec(path);
+  if (serviceMatch) {
+    let serviceId: string;
+    try {
+      serviceId = decodeURIComponent(serviceMatch[1]);
+    } catch {
+      return Response.json({ error: "Invalid service ID" }, { status: 400 });
+    }
+    if (method === "GET") return getServiceById(serviceId);
+    if (method === "DELETE") return removeService(request, serviceId);
+  }
+
+  const allowedMethods: Record<string, string> = {
+    "/api": "GET, POST, PUT",
+    "/api/payments": "GET",
+    "/api/payments/verify": "POST",
+    "/api/settlements": "PUT",
+    "/api/playground": "POST",
+    "/api/services": "GET, POST",
+  };
+  if (serviceMatch) allowedMethods[path] = "GET, DELETE";
+  const allow = allowedMethods[path];
+  if (allow) {
+    return Response.json(
+      { error: "Method not allowed" },
+      { status: 405, headers: { Allow: allow } },
+    );
+  }
+
+  return Response.json({ error: "Not found" }, { status: 404 });
+}
 
 /** Handle POST /api by verifying a payment transaction. */
 export async function handlePaymentPost(request: Request): Promise<Response> {
