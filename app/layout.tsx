@@ -15,8 +15,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ghostrail | x402 facilitator for Solana",
-  description: "Payments that settle. Fees that vanish. Self-hosted x402 facilitator for Solana devnet.",
+  title: "Ghostrail | x402 facilitator on Solana",
+  description: "Payments that settle. Fees that vanish. Self-hosted x402 facilitator on Solana devnet.",
   icons: {
     icon: [
       { url: "/favicon.ico" },

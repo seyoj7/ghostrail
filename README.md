@@ -1,6 +1,6 @@
 # Ghostrail
 
-**Self-hosted x402 payment facilitator for Solana devnet.**
+**Self-hosted x402 payment facilitator on Solana devnet.**
 
 Ghostrail enables AI agents and apps to pay for APIs using reusable prepaid USDC credit on Solana devnet. Buyers deposit once into a deterministic, non-custodial credit account, then sign a nonce-protected charge for each successful API request. Sellers integrate a standard HTTP 402 challenge/response flow and only charge after delivery succeeds.
 

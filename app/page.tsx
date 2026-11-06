@@ -11,7 +11,7 @@ export default function Home() {
 
         <div className="hero-block">
           <div className="mono hero-subtitle-tag">
-            x402 facilitator for Solana
+            x402 facilitator on Solana
           </div>
           <h1 className="hero-title">
             Payments that settle. <br className="hero-break" />
@@ -307,7 +307,7 @@ export default function Home() {
 
         <footer className="home-footer">
           <span>© Ghostrail</span>
-          <span>x402 facilitator for Solana</span>
+          <span>x402 facilitator on Solana</span>
         </footer>
       </div>
     </div>
