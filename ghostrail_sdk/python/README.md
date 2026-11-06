@@ -4,13 +4,35 @@ The GHOSTRAIL Python SDK lets buyers call services that require USDC payment and
 
 ## Setup
 
-Install dependencies from the repository root:
+## Dependencies
+
+The Python SDK requires:
+
+- Python 3.10 or newer
+- `solana==0.41.0` (includes the `solders` and SPL Token integrations used by
+  the buyer client)
+
+The complete pinned dependency list is in
+[`requirements.txt`](./requirements.txt).
+
+Create a virtual environment and install the SDK dependencies from the
+repository root:
 
 ```powershell
-python -m pip install -e .
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r ghostrail_sdk\python\requirements.txt
 ```
 
-Set `BUYER_PRIVATE_KEY` and `ESCROW_PROGRAM_ID` in the root `.env` file for buyer examples. The SDK defaults to `https://ghostrail-five.vercel.app`; set `FACILITATOR_URL` in `.env` only if you use another facilitator.
+The SDK is used directly from this repository; it does not currently publish
+an installable Python package. If PowerShell blocks activation, run
+`Set-ExecutionPolicy -Scope Process Bypass` first, or invoke
+`.venv\Scripts\python.exe` directly.
+
+Set `BUYER_PRIVATE_KEY`, `ESCROW_PROGRAM_ID`, and `USDC_MINT` in the root
+`.env` file for buyer examples. The SDK defaults to
+`https://ghostrail-five.vercel.app`; set `FACILITATOR_URL` in `.env` only if
+you use another facilitator.
 
 ## Examples
 

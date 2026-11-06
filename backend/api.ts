@@ -1,5 +1,8 @@
 import "server-only";
 
+import {
+  decodePaymentSignatureHeader,
+} from "@x402/core/http";
 import { findPaymentBySignature, getRecentPayments } from "./db";
 import { fetchEscrow } from "./escrow";
 import { handlePlaygroundPost } from "./playground";
@@ -182,16 +185,7 @@ function decodeX402PaymentHeader(header: string): string | null {
   if (!header || header.length > 16_384) return null;
 
   try {
-    const encodedPayload = Buffer.from(header, "base64");
-    if (
-      encodedPayload.length === 0 ||
-      encodedPayload.toString("base64").replace(/=+$/, "") !==
-        header.replace(/=+$/, "")
-    ) {
-      return null;
-    }
-
-    const payload: unknown = JSON.parse(encodedPayload.toString("utf8"));
+    const payload: unknown = decodePaymentSignatureHeader(header);
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
       return null;
     }
@@ -216,6 +210,7 @@ function decodeX402PaymentHeader(header: string): string | null {
     return null;
   }
 }
+
 
 /** Handle PUT /api using a buyer- or seller-signed settlement transaction. */
 export async function handleSettlementPut(request: Request): Promise<Response> {

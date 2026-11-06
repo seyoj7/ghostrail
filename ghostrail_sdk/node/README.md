@@ -9,6 +9,19 @@ Seller registration is implemented in `seller.js` and exported as `ghosrail-sdk/
 The example scripts show how to call a service, check credit, deposit USDC, and withdraw unused credit.
 Set the required wallet and program values in the repository-root `.env` before running the scripts.
 
+## Dependencies
+
+The Node.js SDK requires Node.js 20.6 or newer and installs these runtime
+dependencies:
+
+- `@solana/spl-token` — Solana SPL Token account and instruction helpers
+- `@solana/web3.js` — Solana RPC, transaction, and keypair support
+- `bs58` — Base58 private-key decoding
+- `ghostrail` — the repository's shared Solana escrow implementation
+
+The exact versions are declared in
+[`package.json`](./package.json).
+
 ## Setup
 
 Install dependencies from the repository root:

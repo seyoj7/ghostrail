@@ -1,6 +1,6 @@
 # Ghostrail
 
-**Self-hosted x402 payment facilitator on Solana devnet.**
+**Self-hosted x402 payment facilitator for Solana devnet.**
 
 Ghostrail enables AI agents and apps to pay for APIs using reusable prepaid USDC credit on Solana devnet. Buyers deposit once into a deterministic, non-custodial credit account, then sign a nonce-protected charge for each successful API request. Sellers integrate a standard HTTP 402 challenge/response flow and only charge after delivery succeeds.
 
@@ -34,8 +34,8 @@ Ghostrail coordinates trustless, automated micropayments between autonomous agen
 │                             3. GHOSTRAIL FACILITATOR TIER                              │
 │  ┌───────────────────────┐  ┌─────────────────────────┐  ┌──────────────────────────┐  │
 │  │     API Gateways      │  │   Verification Engine   │  │   Settlement & Escrow    │  │
-│  │  • POST /api/payments/verify │  │  • verify.ts            │  │  • settlement.ts         │  │
-│  │  • PUT /api/settlements│  │  • prepaid.ts           │  │  • fee-sponsor.ts        │  │
+│  │  • POST /api/payments/verify│• verify.ts           │  │  • settlement.ts         │  │
+│  │  • PUT /api/settlements│  │  • prepaid.ts          │  │  • fee-sponsor.ts        │  │
 │  │  • /api/services      │  │  • Disallowed Program   │  │  • refund-worker.ts      │  │
 │  │  • Dashboard & UI     │  │    & Nonce Guard        │  │  • Facilitator Co-sign   │  │
 │  └───────────┬───────────┘  └────────────┬────────────┘  └────────────┬─────────────┘  │
@@ -126,7 +126,7 @@ The complete transaction lifecycle proceeds across four deterministic phases:
 │          │      (amount + nonce)    │                              │                    │        │
 │          │                          │                              │                    │        │
 │          ├── 2. POST /resource ────►│                              │                    │        │
-│          │      (X-PAYMENT header)  ├── 3. POST /api/payments/verify ─►│                 │        │
+│          │      (X-PAYMENT header)  ├── 3. POST /api/payments/verify ─►│                 │       │
 │          │                          │      (payment payload)       ├── 4. Anti-replay   │        │
 │          │                          │                              │      DB check      │        │
 │          │                          │                              ├── 5. Query PDA ───►│        │
@@ -150,7 +150,7 @@ The complete transaction lifecycle proceeds across four deterministic phases:
 │          │                          │        (credit is untouched) │                    │        │
 │          │                          │                              │                    │        │
 │          │                          ├── 2. Handler Succeeded! ─────┼────────────────────┤        │
-│          │                          │      PUT /api/settlements (action: charge)         │        │
+│          │                          │      PUT /api/settlements (action: charge)        │        │
 │          │                          │      (creditAddress, signature, tx)               │        │
 │          │                          │                              ├── 3. Broadcast ───►│        │
 │          │                          │                              │      charge_credit │        │
@@ -326,7 +326,16 @@ The app uses the Node.js runtime for blockchain and PostgreSQL API handlers. Ver
 | Backend    | Next.js API Routes, TypeScript, `server-only`                 |
 | Database   | PostgreSQL (via `pg`)                                         |
 | Blockchain | Solana devnet, Anchor, `@solana/web3.js`, `@solana/spl-token` |
-| Protocol   | x402 v1 (HTTP 402 payment challenge/response)                 |
+| Protocol   | x402 HTTP transport with Ghostrail prepaid Solana scheme      |
 | SDKs       | Node.js (ESM), Python                                         |
+
+### x402 integration
+
+Ghostrail uses the official `@x402/core` HTTP codec for payment signatures. The
+facilitator decodes `X-PAYMENT` with
+`decodePaymentSignatureHeader` before validating the Solana-specific prepaid
+payload, rather than treating the header as an application-only base64 format.
+The NVIDIA seller also emits the standard `PAYMENT-REQUIRED` header on HTTP
+402 responses and `X-PAYMENT-RESPONSE` after settlement.
 
 ---
