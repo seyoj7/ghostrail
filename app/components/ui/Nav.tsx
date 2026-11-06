@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import logoImg from "@/public/logo.webp";
 
 export function Nav() {
   const pathname = usePathname();
@@ -11,7 +12,7 @@ export function Nav() {
     <nav className="nav" aria-label="Main Navigation">
       <Link href="/" className="nav__brand">
         <Image
-          src="/logo.webp"
+          src={logoImg}
           alt="Ghostrail"
           width={30}
           height={30}

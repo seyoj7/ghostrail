@@ -33,5 +33,10 @@
     "@types/react-dom": "^19",
     "bs58": "^6.0.0",
     "typescript": "^5"
+  },
+  "allowScripts": {
+    "bigint-buffer@1.1.5": true,
+    "bufferutil@4.1.0": true,
+    "utf-8-validate@6.0.6": true
   }
 }

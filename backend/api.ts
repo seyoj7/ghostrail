@@ -12,6 +12,7 @@ import {
   registerService,
   removeService,
 } from "./services";
+import { generateSdkZip } from "./sdk";
 import { verifyPayment } from "./verify";
 
 /** Dispatch API requests by URL and method. */
@@ -29,6 +30,9 @@ export async function handleApiRequest(request: Request): Promise<Response> {
   if (path === "/api/playground" && method === "POST") return handlePlaygroundPost(request);
   if (path === "/api/services" && method === "GET") return listServices();
   if (path === "/api/services" && method === "POST") return registerService(request);
+  if ((path === "/api/sdk/download" || path === "/api/download-sdk") && method === "GET") {
+    return handleSdkDownload();
+  }
 
   const serviceMatch = /^\/api\/services\/([^/]+)$/.exec(path);
   if (serviceMatch) {
@@ -49,6 +53,8 @@ export async function handleApiRequest(request: Request): Promise<Response> {
     "/api/settlements": "PUT",
     "/api/playground": "POST",
     "/api/services": "GET, POST",
+    "/api/download-sdk": "GET",
+    "/api/sdk/download": "GET",
   };
   if (serviceMatch) allowedMethods[path] = "GET, DELETE";
   const allow = allowedMethods[path];
@@ -60,6 +66,24 @@ export async function handleApiRequest(request: Request): Promise<Response> {
   }
 
   return Response.json({ error: "Not found" }, { status: 404 });
+}
+
+function handleSdkDownload(): Response {
+  try {
+    const zip = generateSdkZip();
+    return new Response(new Uint8Array(zip), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/zip",
+        "Content-Disposition": 'attachment; filename="ghostrail-sdk.zip"',
+        "Content-Length": String(zip.length),
+        "Cache-Control": "no-cache",
+      },
+    });
+  } catch (error) {
+    console.error("Failed to generate SDK zip:", error);
+    return Response.json({ error: "Failed to generate SDK zip" }, { status: 500 });
+  }
 }
 
 /** Handle POST /api by verifying a payment transaction. */

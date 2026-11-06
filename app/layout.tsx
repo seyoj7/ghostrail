@@ -18,7 +18,11 @@ export const metadata: Metadata = {
   title: "Ghostrail | x402 facilitator for Solana",
   description: "Payments that settle. Fees that vanish. Self-hosted x402 facilitator for Solana devnet.",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    apple: "/apple-icon.png",
   },
 };
 
@@ -33,4 +37,3 @@ export default function RootLayout({
     </html>
   );
 }
-
