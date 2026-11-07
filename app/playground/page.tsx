@@ -24,7 +24,7 @@ import "./page.css";
 const ESCROW_PROGRAM_ID = "AwtzyMZqxncdqDgpXRnQ2s7Y6zKMmEA8YfCDdLqsPefM";
 const USDC_MINT = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
 const SOLANA_RPC_URL = "https://api.devnet.solana.com";
-const MAX_CREDIT = 100_000_000n;
+const MAX_CREDIT = BigInt(100_000_000);
 
 type CreditAccount = { address: PublicKey; balance: bigint; nextNonce: bigint };
 
@@ -65,15 +65,15 @@ function parseUsdcAmount(value: string): bigint {
     throw new Error("Enter a USDC amount with up to 6 decimal places.");
   }
   const [whole, fraction = ""] = value.trim().split(".");
-  const amount = BigInt(whole) * 1_000_000n + BigInt(fraction.padEnd(6, "0"));
-  if (amount < 1_000_000n || amount > MAX_CREDIT) {
+  const amount = BigInt(whole) * BigInt(1_000_000) + BigInt(fraction.padEnd(6, "0"));
+  if (amount < BigInt(1_000_000) || amount > MAX_CREDIT) {
     throw new Error("Deposit must be between 1 and 100 USDC.");
   }
   return amount;
 }
 
 function formatUsdc(amount: bigint): string {
-  return `${amount / 1_000_000n}.${(amount % 1_000_000n).toString().padStart(6, "0")}`;
+  return `${amount / BigInt(1_000_000)}.${(amount % BigInt(1_000_000)).toString().padStart(6, "0")}`;
 }
 
 async function getCreditAccount(
@@ -88,7 +88,7 @@ async function getCreditAccount(
     programId,
   );
   const account = await connection.getAccountInfo(address, "confirmed");
-  if (!account) return { address, balance: 0n, nextNonce: 0n };
+  if (!account) return { address, balance: BigInt(0), nextNonce: BigInt(0) };
   const expectedDiscriminator = await discriminator("account", "Credit");
   if (
     !account.owner.equals(programId) || account.data.length < 121 ||
@@ -218,7 +218,7 @@ async function runCreditAction(
     }, null, 2);
   }
 
-  if (credit.balance === 0n) throw new Error("No prepaid USDC remains to withdraw.");
+  if (credit.balance === BigInt(0)) throw new Error("No prepaid USDC remains to withdraw.");
   if (!buyer) throw new Error("Buyer private key is required for withdrawals.");
   const buyerToken = await getBuyerTokenAccount(connection, buyer);
   const data = Buffer.alloc(16);
@@ -289,7 +289,7 @@ async function createPayment(challengeBody: string, buyerPrivateKey: string): Pr
   } catch {
     throw new Error("The endpoint returned an invalid payment amount.");
   }
-  if (amount <= 0n) throw new Error("The endpoint returned an invalid payment amount.");
+  if (amount <= BigInt(0)) throw new Error("The endpoint returned an invalid payment amount.");
 
   const [credit] = PublicKey.findProgramAddressSync(
     [Buffer.from("credit"), buyer.publicKey.toBuffer(), seller.toBuffer(), mint.toBuffer()],
@@ -298,8 +298,8 @@ async function createPayment(challengeBody: string, buyerPrivateKey: string): Pr
   const [vault] = PublicKey.findProgramAddressSync([Buffer.from("vault"), credit.toBuffer()], programId);
   const connection = new Connection(SOLANA_RPC_URL, "confirmed");
   const account = await connection.getAccountInfo(credit, "confirmed");
-  let balance = 0n;
-  let nonce = 0n;
+  let balance = BigInt(0);
+  let nonce = BigInt(0);
   if (account) {
     const expectedDiscriminator = await discriminator("account", "Credit");
     if (
@@ -453,7 +453,6 @@ export default function PlaygroundPage() {
         <Nav />
         <main className="playground-page">
           <header className="playground-header">
-            <div className="mono playground-eyebrow">BUYER &amp; SELLER TOOL</div>
             <h1 className="playground-title">x402 Playground</h1>
             <p className="mut playground-intro">
               Inspect or call a service, then check, deposit, or withdraw a
@@ -601,9 +600,12 @@ export default function PlaygroundPage() {
                   )}
                 </>
               ) : (
-                <p className="mut playground-placeholder">
-                  The endpoint response and any payment receipt will appear here.
-                </p>
+                <>
+                  <p className="mut playground-placeholder">
+                    The endpoint response and any payment receipt will appear here.
+                  </p>
+                  <div className="playground-inset" aria-hidden="true" />
+                </>
               )}
             </section>
           </div>

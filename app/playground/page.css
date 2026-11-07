@@ -51,6 +51,11 @@
   background: var(--bg-card);
 }
 
+.playground-output {
+  display: flex;
+  flex-direction: column;
+}
+
 .playground-field {
   display: grid;
   gap: 8px;
@@ -142,9 +147,17 @@
 }
 
 .playground-placeholder {
-  min-height: 150px;
   font-size: 14px;
   line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.playground-inset {
+  flex: 1;
+  min-height: 280px;
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  background: var(--bg-page);
 }
 
 .playground-response {
@@ -278,8 +291,12 @@
   }
 
   .playground-placeholder {
-    min-height: 70px;
     font-size: 13px;
+    margin-bottom: 12px;
+  }
+
+  .playground-inset {
+    min-height: 180px;
   }
 
   .playground-response {

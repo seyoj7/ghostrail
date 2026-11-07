@@ -18,9 +18,10 @@ export default function Home() {
             Fees that vanish.
           </h1>
           <p className="mut hero-description">
-            AI agents and apps pay for APIs from devnet USDC credit. Buyers
-            deposit once, then sign a nonce-protected charge for each successful
-            request. Buyers only need devnet SOL for fees and rent.
+            Give your agents a tab for APIs. Fund it once with USDC and let
+            calls settle automatically, one nonce-protected charge at a time.
+            USDC covers the calls and SOL covers transaction fees and
+            account rent.
           </p>
           <div className="hero-actions">
             <Link href="/dashboard" className="btn">

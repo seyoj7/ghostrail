@@ -26,6 +26,7 @@
 .hero-description {
   font-size: 19px;
   line-height: 1.6;
+  font-weight: 600;
   margin: 0 0 32px;
   max-width: 680px;
 }
