@@ -32,7 +32,7 @@ export async function releaseEscrow(
   return settleEscrow(escrowAddress, serializedTransaction, "release");
 }
 
-/** Submit a buyer-signed refund transaction. */
+/** Submit a timeout-eligible refund transaction signed by any caller. */
 export async function refundEscrow(
   escrowAddress: string,
   serializedTransaction: string,
@@ -78,6 +78,7 @@ async function settleEscrow(
       };
     }
     if (
+      action === "release" &&
       instruction.keys.some((key) =>
         key.pubkey.equals(facilitatorKeypair.publicKey),
       )
@@ -95,7 +96,15 @@ async function settleEscrow(
     const mint = new PublicKey(escrow.mint);
     const buyer = new PublicKey(escrow.buyer);
     const seller = new PublicKey(escrow.seller);
-    const expectedSigner = action === "release" ? seller : buyer;
+    const refundCaller =
+      action === "refund" ? instruction.keys[0]?.pubkey : undefined;
+    if (action === "refund" && !refundCaller) {
+      return { success: false, error: "Refund caller is missing" };
+    }
+    const expectedSigner =
+      action === "release"
+        ? seller
+        : refundCaller!;
     const expectedDiscriminator =
       action === "release" ? RELEASE_DISCRIMINATOR : REFUND_DISCRIMINATOR;
 
@@ -112,7 +121,7 @@ async function settleEscrow(
     ) {
       return {
         success: false,
-        error: "The required buyer or seller signature is missing",
+        error: "The required refund caller or seller signature is missing",
       };
     }
     if (
@@ -122,7 +131,7 @@ async function settleEscrow(
     ) {
       return {
         success: false,
-        error: "The required buyer or seller signature is missing",
+        error: "The required refund caller or seller signature is missing",
       };
     }
 
@@ -145,18 +154,19 @@ async function settleEscrow(
         };
       }
     } else if (
-      instruction.keys.length !== 7 ||
-      !instruction.keys[0].pubkey.equals(buyer) ||
+      instruction.keys.length !== 8 ||
+      !instruction.keys[0].pubkey.equals(expectedSigner) ||
       !instruction.keys[0].isSigner ||
-      !instruction.keys[0].isWritable ||
-      !instruction.keys[1].pubkey.equals(seller) ||
-      instruction.keys[1].isSigner ||
-      instruction.keys[1].isWritable ||
-      !instruction.keys[2].pubkey.equals(mint) ||
-      !instruction.keys[3].pubkey.equals(escrowPubkey) ||
-      !instruction.keys[4].pubkey.equals(vaultPda) ||
-      !instruction.keys[5].isWritable ||
-      !isTokenProgram(instruction.keys[6].pubkey)
+      !instruction.keys[1].pubkey.equals(buyer) ||
+      !instruction.keys[1].isWritable ||
+      !instruction.keys[2].pubkey.equals(seller) ||
+      instruction.keys[2].isSigner ||
+      instruction.keys[2].isWritable ||
+      !instruction.keys[3].pubkey.equals(mint) ||
+      !instruction.keys[4].pubkey.equals(escrowPubkey) ||
+      !instruction.keys[5].pubkey.equals(vaultPda) ||
+      !instruction.keys[6].isWritable ||
+      !isTokenProgram(instruction.keys[7].pubkey)
     ) {
       return {
         success: false,

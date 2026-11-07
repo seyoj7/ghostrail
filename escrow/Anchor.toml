@@ -11,7 +11,7 @@ escrow = "AwtzyMZqxncdqDgpXRnQ2s7Y6zKMmEA8YfCDdLqsPefM"
 
 [provider]
 cluster = "devnet"
-wallet = '~\.config/solana/ghostrail.json'
+wallet = '~\.config/solana/id.json'
 
 [scripts]
 test = "cargo test"

@@ -19,7 +19,6 @@ export async function register(): Promise<void> {
     "SOLANA_RPC_URL",
     "ESCROW_PROGRAM_ID",
     "FACILITATOR_PRIVATE_KEY",
-    "BUYER_PRIVATE_KEY",
   ];
   const missing = required.filter((name) => !process.env[name]);
   if (missing.length > 0) {

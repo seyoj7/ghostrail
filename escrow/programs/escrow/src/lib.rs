@@ -496,13 +496,15 @@ pub struct Release<'info> {
 
 #[derive(Accounts)]
 pub struct Refund<'info> {
-    /// Buyer signs and receives the refund and account rent.
+    /// Any caller may submit a refund after the timeout.
+    pub caller: Signer<'info>,
+    /// CHECK: Validated via `has_one = buyer` against the escrow account.
     #[account(mut)]
-    pub buyer: Signer<'info>,
+    pub buyer: UncheckedAccount<'info>,
     /// CHECK: Validated via `has_one = seller` against the escrow account.
     pub seller: UncheckedAccount<'info>,
     pub mint: InterfaceAccount<'info, Mint>,
-    /// Escrow state, closed after refund; rent is returned to buyer.
+    /// Escrow state, closed after refund; rent is returned to the recorded buyer.
     #[account(
         mut,
         has_one = buyer,

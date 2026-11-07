@@ -558,12 +558,15 @@
       ],
       "accounts": [
         {
-          "name": "buyer",
+          "name": "caller",
           "docs": [
-            "Buyer signs and receives the refund and account rent."
+            "Any caller may submit a refund after the timeout."
           ],
+          "signer": true
+        },
+        {
+          "name": "buyer",
           "writable": true,
-          "signer": true,
           "relations": [
             "escrow"
           ]
@@ -583,7 +586,7 @@
         {
           "name": "escrow",
           "docs": [
-            "Escrow state, closed after refund; rent is returned to buyer."
+            "Escrow state, closed after refund; rent is returned to the recorded buyer."
           ],
           "writable": true,
           "pda": {

@@ -6,13 +6,13 @@ import json
 import os
 import re
 from pathlib import Path
+from importlib import import_module
 from typing import Any, Iterable, cast
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from solana.rpc.async_api import AsyncClient
 from solana.rpc.commitment import Commitment
-from solana.rpc.models import TxOpts
 from solders.hash import Hash
 from solders.instruction import AccountMeta, Instruction
 from solders.keypair import Keypair
@@ -22,7 +22,15 @@ from solders.transaction import Transaction
 
 BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 LAMPORTS_PER_SOL = 1_000_000_000
-COMMITMENT = Commitment.CONFIRMED
+COMMITMENT = cast(Commitment, getattr(Commitment, "CONFIRMED", "confirmed"))
+
+try:
+    _tx_opts_module = import_module("solana.rpc.models")
+except ModuleNotFoundError as error:
+    if error.name != "solana.rpc.models":
+        raise
+    _tx_opts_module = import_module("solana.rpc.types")
+TxOpts = cast(Any, getattr(_tx_opts_module, "TxOpts"))
 
 
 def load_dotenv() -> None:
@@ -236,8 +244,6 @@ async def settle_escrow_action(
         if authority is None:
             if action == "refund":
                 authority = load_keypair("BUYER_PRIVATE_KEY", os.getenv("BUYER_PRIVATE_KEY"))
-                if authority.pubkey() != buyer:
-                    raise ValueError("BUYER_PRIVATE_KEY does not match the escrow buyer")
             elif os.getenv("SELLER_PRIVATE_KEY"):
                 authority = load_keypair("SELLER_PRIVATE_KEY", os.getenv("SELLER_PRIVATE_KEY"))
             elif os.getenv("BUYER_PRIVATE_KEY"):
@@ -245,10 +251,8 @@ async def settle_escrow_action(
             else:
                 raise ValueError("A signing key is required for settlement")
 
-        expected_authority = seller if action == "release" else buyer
-        if authority.pubkey() != expected_authority:
-            role = "seller" if action == "release" else "buyer"
-            raise ValueError(f"Signing key {authority.pubkey()} does not match escrow {role} {expected_authority}")
+        if action == "release" and authority.pubkey() != seller:
+            raise ValueError(f"Signing key {authority.pubkey()} does not match escrow seller {seller}")
 
         facilitator_value = os.getenv("FACILITATOR_PUBLIC_KEY")
         facilitator = (
@@ -256,7 +260,7 @@ async def settle_escrow_action(
             if facilitator_value
             else load_keypair("FACILITATOR_PRIVATE_KEY", os.getenv("FACILITATOR_PRIVATE_KEY")).pubkey()
         )
-        if authority.pubkey() == facilitator:
+        if action == "release" and authority.pubkey() == facilitator:
             raise ValueError("The facilitator cannot be the escrow authority")
 
         recipient = seller if action == "release" else buyer
@@ -282,7 +286,9 @@ async def settle_escrow_action(
                 program_id,
                 REFUND_DISCRIMINATOR,
                 [
-                    account_meta(buyer, signer=True, writable=True),
+                    account_meta(authority.pubkey(), signer=True, writable=False),
+                    account_meta(buyer, signer=False, writable=True),
+                    account_meta(seller, signer=False, writable=False),
                     account_meta(mint, signer=False, writable=False),
                     account_meta(escrow_address, signer=False, writable=True),
                     account_meta(vault, signer=False, writable=True),

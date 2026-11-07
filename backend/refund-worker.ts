@@ -32,26 +32,19 @@ export function startAutomaticRefundWorker(): void {
   if (workerState.ghostrailAutomaticRefundWorkerStarted) {
     return;
   }
-  if (!process.env.BUYER_PRIVATE_KEY) {
-    console.error(
-      "Automatic refunds are enabled but BUYER_PRIVATE_KEY is missing.",
-    );
-    return;
-  }
-
   workerState.ghostrailAutomaticRefundWorkerStarted = true;
   void runRefundWorker();
 }
 
 async function runRefundWorker(): Promise<void> {
   const pollMs = parsePollInterval();
-  const buyer = loadKeypair(process.env.BUYER_PRIVATE_KEY!);
+  const facilitator = loadKeypair(process.env.FACILITATOR_PRIVATE_KEY!);
   const connection = new Connection(process.env.SOLANA_RPC_URL!, "confirmed");
 
   console.log(`Automatic refund worker enabled; checking every ${pollMs}ms.`);
   while (true) {
     try {
-      await scanLockedPayments(connection, buyer);
+      await scanLockedPayments(connection, facilitator);
     } catch (error) {
       console.error(
         "Automatic refund worker scan failed:",
@@ -64,7 +57,7 @@ async function runRefundWorker(): Promise<void> {
 
 async function scanLockedPayments(
   connection: Connection,
-  buyer: Keypair,
+  facilitator: Keypair,
 ): Promise<void> {
   const candidates = await getAutoRefundCandidates();
   const now = BigInt(Math.floor(Date.now() / 1000));
@@ -76,7 +69,6 @@ async function scanLockedPayments(
     if (
       !escrow ||
       escrow.state !== EscrowState.Locked ||
-      escrow.buyer !== buyer.publicKey.toBase58() ||
       escrow.timeout > now
     ) {
       continue;
@@ -89,7 +81,7 @@ async function scanLockedPayments(
     if (serviceAvailable) continue;
 
     inFlight.add(candidate.escrowAddress);
-    void submitAutomaticRefund(connection, buyer, candidate.escrowAddress)
+    void submitAutomaticRefund(connection, facilitator, candidate.escrowAddress)
       .catch((error) => {
         console.error(
           `Automatic refund failed for ${candidate.escrowAddress}:`,
@@ -121,37 +113,35 @@ async function checkServiceAvailability(url: string): Promise<boolean> {
 
 async function submitAutomaticRefund(
   connection: Connection,
-  buyer: Keypair,
+  facilitator: Keypair,
   escrowAddress: string,
 ): Promise<void> {
   const escrow = await fetchEscrow(escrowAddress);
   if (
     !escrow ||
-    escrow.state !== EscrowState.Locked ||
-    escrow.buyer !== buyer.publicKey.toBase58()
+    escrow.state !== EscrowState.Locked
   ) {
     return;
   }
 
   const escrowPubkey = new PublicKey(escrowAddress);
-  const facilitator = loadKeypair(
-    process.env.FACILITATOR_PRIVATE_KEY!,
-  ).publicKey;
+  const buyer = new PublicKey(escrow.buyer);
   const [vault] = PublicKey.findProgramAddressSync(
     [Buffer.from("vault"), escrowPubkey.toBuffer()],
     ESCROW_PROGRAM_ID,
   );
   const buyerToken = await getOrCreateAssociatedTokenAccount(
     connection,
-    buyer,
+    facilitator,
     new PublicKey(escrow.mint),
-    buyer.publicKey,
+    buyer,
   );
   const instruction = new TransactionInstruction({
     programId: ESCROW_PROGRAM_ID,
     data: REFUND_DISCRIMINATOR,
     keys: [
-      { pubkey: buyer.publicKey, isSigner: true, isWritable: true },
+      { pubkey: facilitator.publicKey, isSigner: true, isWritable: false },
+      { pubkey: buyer, isSigner: false, isWritable: true },
       {
         pubkey: new PublicKey(escrow.seller),
         isSigner: false,
@@ -169,11 +159,11 @@ async function submitAutomaticRefund(
     ],
   });
   const transaction = new Transaction().add(instruction);
-  transaction.feePayer = facilitator;
+  transaction.feePayer = facilitator.publicKey;
   transaction.recentBlockhash = (
     await connection.getLatestBlockhash("confirmed")
   ).blockhash;
-  transaction.partialSign(buyer);
+  transaction.partialSign(facilitator);
 
   const result = await refundEscrow(
     escrowAddress,
