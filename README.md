@@ -209,7 +209,7 @@ An [Anchor](https://www.anchor-lang.com/) program deployed on Solana devnet with
 | ----------------- | -------------------------------------------------------------- |
 | `lock`            | Lock USDC into a per-buyer escrow PDA with a timeout (60s–1hr) |
 | `release`         | Seller confirms delivery → funds transfer to seller            |
-| `refund`          | Anyone can trigger after timeout; funds return to the buyer   |
+| `refund`          | Buyer reclaims funds after timeout expires                     |
 | `deposit_credit`  | Fund a reusable buyer↔seller credit account (1–100 USDC)       |
 | `charge_credit`   | Deduct from credit with a buyer-signed nonce (per-call charge) |
 | `withdraw_credit` | Buyer withdraws unused credit at any time                      |
@@ -304,26 +304,6 @@ The buyer locks USDC into a one-time escrow PDA with a timeout. The seller relea
 - Solana CLI + devnet SOL
 - Anchor CLI (to build/deploy the escrow program)
 
-### Local Python key utilities
-
-From the repository root, install the Python dependencies used by the helper scripts:
-
-```powershell
-python -m pip install -r scripts/requirements.txt
-```
-
-Generate facilitator and fee-payer keypairs with:
-
-```powershell
-python -m scripts.generate-keys
-```
-
-The script prints base58 private keys and public addresses. Store the private keys securely in your local `.env`; never commit or share them. To print the public addresses from that `.env` later, run:
-
-```powershell
-python -m scripts.show-addresses
-```
-
 ### Deploy to Vercel
 
 Import this repository into Vercel and deploy it as a Next.js project. The production SDK base URL is `https://ghostrail-five.vercel.app` (override it with `FACILITATOR_URL` when using another deployment).
@@ -336,7 +316,7 @@ Set these environment variables in the Vercel project before deploying:
 - `FACILITATOR_PRIVATE_KEY` and `FEE_PAYER_PRIVATE_KEY` — base58 secret keys used by settlement and fee sponsorship
 - `AUTO_REFUND_ENABLED=false` — Vercel functions do not run the persistent background refund worker; run that worker separately if automatic refunds are needed
 
-Automatic refunds do not require buyers' private keys. The on-chain refund instruction allows any caller to trigger a refund after timeout and sends the funds to the buyer recorded in escrow.
+The on-chain refund instruction allows any caller to trigger a refund after timeout and sends the funds to the buyer recorded in escrow.
 
 The app uses the Node.js runtime for blockchain and PostgreSQL API handlers. Vercel's standard Next.js build and output settings are sufficient; no custom output directory is required.
 
