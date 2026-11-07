@@ -15,10 +15,13 @@
     "@coral-xyz/anchor": "^0.32.1",
     "@solana/kit": "^8.6.0",
     "@solana/spl-token": "^0.4.15",
+    "@solana/web3.js": "^1.99.0",
     "@x402/core": "2.29.0",
     "@x402/fetch": "2.29.0",
     "@x402/next": "2.29.0",
     "@x402/svm": "2.29.0",
+    "bs58": "^6.0.0",
+    "buffer": "^6.0.3",
     "next": "16.4.5",
     "pg": "^8.16.3",
     "react": "19.3.1",
@@ -26,12 +29,10 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
-    "@solana/web3.js": "^1.99.0",
     "@types/node": "^20",
     "@types/pg": "^8.15.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "bs58": "^6.0.0",
     "typescript": "^5"
   },
   "allowScripts": {

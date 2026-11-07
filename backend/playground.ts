@@ -102,8 +102,15 @@ async function forwardRequest(
           Connection: "close",
         },
         agent: false,
-        lookup: (_hostname, _options, callback) => {
-          callback(null, pinnedAddress.address, pinnedAddress.family);
+        lookup: (_hostname, options, callback) => {
+          // Node may request all DNS records when autoSelectFamily is enabled.
+          // Return the matching shape while keeping the resolved address pinned
+          // to the one already checked above.
+          if (options.all) {
+            callback(null, [pinnedAddress]);
+          } else {
+            callback(null, pinnedAddress.address, pinnedAddress.family);
+          }
         },
       },
       (response) => {

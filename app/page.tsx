@@ -296,9 +296,8 @@ export default function Home() {
               Register your API
             </Link>
             <a
-              href="/api/download-sdk"
+              href="https://github.com/seyoj7/ghostrail_sdk/archive/refs/heads/master.zip"
               className="btn2"
-              download="ghostrail-sdk.zip"
             >
               Download SDK
             </a>
