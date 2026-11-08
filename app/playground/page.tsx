@@ -34,7 +34,7 @@ type PaymentTerms = {
   payTo: string;
   asset: string;
   maxAmountRequired: string;
-  extra?: { escrowProgramId?: string; creditModel?: string };
+  extra?: { escrowProgramId?: string; creditModel?: string; serviceId?: string };
 };
 
 function base64(value: Uint8Array | string): string {
@@ -252,7 +252,10 @@ async function runCreditAction(
   }, null, 2);
 }
 
-async function createPayment(challengeBody: string, buyerPrivateKey: string): Promise<string> {
+async function createPayment(
+  challengeBody: string,
+  buyerPrivateKey: string,
+): Promise<{ payment: string; serviceId: string | null }> {
   let challenge: { x402Version?: number; accepts?: PaymentTerms[] };
   try {
     challenge = JSON.parse(challengeBody);
@@ -338,12 +341,15 @@ async function createPayment(challengeBody: string, buyerPrivateKey: string): Pr
   const { blockhash } = await connection.getLatestBlockhash("confirmed");
   const transaction = new Transaction({ feePayer: buyer.publicKey, recentBlockhash: blockhash }).add(instruction);
   transaction.sign(buyer);
-  return base64(JSON.stringify({
-    x402Version: 1,
-    scheme: "escrow",
-    network: "solana-devnet",
-    payload: { transaction: transaction.serialize().toString("base64") },
-  }));
+  return {
+    payment: base64(JSON.stringify({
+      x402Version: 1,
+      scheme: "escrow",
+      network: "solana-devnet",
+      payload: { transaction: transaction.serialize().toString("base64") },
+    })),
+    serviceId: terms.extra?.serviceId ?? null,
+  };
 }
 
 type PlaygroundResult = {
@@ -393,6 +399,7 @@ export default function PlaygroundPage() {
       return;
     }
 
+    const paidCall = mode === "endpoint" && buyerPrivateKey.trim().length > 0;
     setLoading(true);
     try {
       if (mode !== "endpoint") {
@@ -419,23 +426,64 @@ export default function PlaygroundPage() {
       });
       let response = await sendToEndpoint();
       let data = await response.json();
+      let serviceId: string | null = null;
+      let didPay = false;
       if (!response.ok) {
         throw new Error(data.error || `Request failed (${response.status}).`);
       }
       if (buyerPrivateKey.trim() && data.status === 402) {
         const signedPayment = await createPayment(data.body, buyerPrivateKey);
+        serviceId = signedPayment.serviceId;
+        didPay = true;
         setBuyerPrivateKey("");
-        response = await sendToEndpoint(signedPayment);
+        response = await sendToEndpoint(signedPayment.payment);
         data = await response.json();
         if (!response.ok) {
           throw new Error(data.error || `Request failed (${response.status}).`);
         }
       }
+      let displayBody = data.body;
+      if (paidCall && data.status !== 402) {
+        let serviceBody: Record<string, unknown>;
+        try {
+          serviceBody = JSON.parse(data.body);
+        } catch {
+          throw new Error("The paid service returned an invalid JSON response.");
+        }
+        let transaction: string | null = null;
+        if (didPay && !data.receipt) {
+          throw new Error("Service response did not include X-PAYMENT-RESPONSE.");
+        }
+        if (data.receipt) {
+          let receipt: { success?: boolean; network?: string; transaction?: string };
+          try {
+            receipt = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(data.receipt), (char) => char.charCodeAt(0))));
+          } catch {
+            throw new Error("Service returned an invalid X-PAYMENT-RESPONSE receipt.");
+          }
+          const payment = serviceBody.payment as { accepted?: boolean } | undefined;
+          const charge = serviceBody.charge as { success?: boolean; signature?: string } | undefined;
+          if (
+            payment?.accepted !== true || charge?.success !== true ||
+            receipt.success !== true || receipt.network !== "solana-devnet" ||
+            receipt.transaction !== charge.signature
+          ) {
+            throw new Error("Service response did not include a matching confirmed payment receipt.");
+          }
+          transaction = receipt.transaction;
+        }
+        displayBody = JSON.stringify({
+          response: serviceBody.response ?? serviceBody,
+          transaction,
+          endpoint: parsedEndpoint.toString(),
+          service_id: serviceId,
+        }, null, 2);
+      }
       setResult({
         status: data.status,
         statusText: data.statusText,
-        body: data.body,
-        receipt: data.receipt,
+        body: displayBody,
+        receipt: paidCall ? null : data.receipt,
       });
     } catch (requestError) {
       const message =

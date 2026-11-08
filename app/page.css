@@ -380,11 +380,36 @@
 .home-footer {
   display: flex;
   justify-content: space-between;
+  gap: 20px;
   align-items: center;
   min-height: 48px;
   border-top: 1px solid var(--border-card);
   color: var(--text-mut);
   font-size: 12px;
+}
+
+.home-footer-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-main);
+  transition: color 0.15s ease;
+}
+
+.home-footer-github svg {
+  width: 15px;
+  height: 15px;
+}
+
+.home-footer-github:hover,
+.home-footer-github:focus-visible {
+  color: var(--text-accent);
+}
+
+.home-footer-github:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 4px;
+  border-radius: 2px;
 }
 
 /* ── Responsive Breakpoints ───────────────────────────────────────── */
