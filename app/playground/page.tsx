@@ -466,6 +466,7 @@ export default function PlaygroundPage() {
           if (
             payment?.accepted !== true || charge?.success !== true ||
             receipt.success !== true || receipt.network !== "solana-devnet" ||
+            typeof receipt.transaction !== "string" ||
             receipt.transaction !== charge.signature
           ) {
             throw new Error("Service response did not include a matching confirmed payment receipt.");
