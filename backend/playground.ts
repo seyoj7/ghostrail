@@ -6,7 +6,8 @@ import * as http from "node:http";
 import * as https from "node:https";
 
 const MAX_BODY_BYTES = 1024 * 1024;
-const REQUEST_TIMEOUT_MS = 15_000;
+// Allow time for slow or cold-starting service endpoints to respond.
+const REQUEST_TIMEOUT_MS = 90_000;
 
 function isBlockedIPv4(address: string): boolean {
   const octets = address.split(".").map(Number);
@@ -138,7 +139,9 @@ async function forwardRequest(
     );
 
     request.setTimeout(REQUEST_TIMEOUT_MS, () => {
-      request.destroy(new Error("The endpoint request timed out after 15 seconds."));
+      request.destroy(
+        new Error(`The endpoint request timed out after ${REQUEST_TIMEOUT_MS / 1000} seconds.`),
+      );
     });
     request.on("error", reject);
     request.end(body);
