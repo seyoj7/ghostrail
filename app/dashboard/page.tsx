@@ -223,7 +223,9 @@ export default function DashboardPage() {
                   ) : (
                     "none"
                   )}
-                  {record.escrowAddress && (
+                  {record.accepted &&
+                    record.escrowState === "Locked" &&
+                    record.escrowAddress && (
                     <a
                       href={`/playground?refund=${encodeURIComponent(record.escrowAddress)}`}
                       className="tx-hash-link"

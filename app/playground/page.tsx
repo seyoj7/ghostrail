@@ -486,7 +486,7 @@ export default function PlaygroundPage() {
     } else if (mode === "refund" && !escrowAddress.trim()) {
       setError("Enter the escrow address to refund.");
       return;
-    } else if (!sellerAddress.trim()) {
+    } else if (mode !== "refund" && !sellerAddress.trim()) {
       setError("Enter the seller wallet address.");
       return;
     }
