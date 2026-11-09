@@ -35,8 +35,8 @@ Ghostrail coordinates trustless, automated micropayments between autonomous agen
 │  ┌───────────────────────┐  ┌─────────────────────────┐  ┌──────────────────────────┐  │
 │  │     API Gateways      │  │   Verification Engine   │  │   Settlement & Escrow    │  │
 │  │  • POST /api/payments/verify│• verify.ts           │  │  • settlement.ts         │  │
-│  │  • PUT /api/settlements│  │  • prepaid.ts          │  │  • fee-sponsor.ts        │  │
-│  │  • /api/services      │  │  • Disallowed Program   │  │  • refund-worker.ts      │  │
+│  │  • PUT /api/settlements│  │  • prepaid.ts          │  │  • settlement.ts         │  │
+│  │  • /api/services      │  │  • Disallowed Program   │  │  • escrow.ts              │  │
 │  │  • Dashboard & UI     │  │    & Nonce Guard        │  │  • Facilitator Co-sign   │  │
 │  └───────────┬───────────┘  └────────────┬────────────┘  └────────────┬─────────────┘  │
 │              └───────────────────────────┼────────────────────────────┘                │
@@ -226,10 +226,8 @@ The Next.js server acts as a neutral facilitator:
 
 - **`verify.ts`** — Validates buyer-signed escrow lock transactions: checks instruction shape, allowed programs, compute limits, timeout bounds, escrow funding, fee-payer isolation, and replay prevention.
 - **`prepaid.ts`** — Validates prepaid charge authorizations, submits deposits, settles charges after handler success.
-- **`settlement.ts`** — Co-signs and submits release/refund transactions with the facilitator keypair.
+- **`settlement.ts`** — Co-signs seller release transactions and submits buyer-signed refunds.
 - **`escrow.ts`** — Reads on-chain escrow/credit accounts via Anchor.
-- **`fee-sponsor.ts`** — Sponsors transaction fees so buyers don't need SOL for the escrow lock.
-- **`refund-worker.ts`** — Background poller that auto-refunds expired escrows when seller services are unreachable.
 - **`services.ts`** — Service registry CRUD with secret-token-protected deletion.
 - **`db.ts`** — PostgreSQL persistence: schema auto-migration, payment records, signature dedup, service registry.
 
@@ -264,6 +262,7 @@ Available in **Node.js** and **Python**:
 | Call a paid service    | `callService()`    | —                   |
 | Deposit USDC credit    | `depositCredit()`  | —                   |
 | Withdraw unused credit | `withdrawCredit()` | —                   |
+| Refund expired escrow | `refundEscrow()` / `refund_escrow()` | — |
 | Check credit balance   | `checkCredit()`    | —                   |
 | Register a service     | —                  | `registerService()` |
 | Delete a service       | —                  | `deleteService()`   |
@@ -278,7 +277,7 @@ The buyer deposits USDC into a reusable credit account bound to one seller walle
 
 ### 2. Per-Request Escrow (Legacy)
 
-The buyer locks USDC into a one-time escrow PDA with a timeout. The seller releases to claim payment; the buyer refunds after timeout. A fee-payer sponsors the lock transaction so the buyer doesn't need SOL.
+The buyer locks USDC into a one-time escrow PDA with a timeout. The seller releases to claim payment; the buyer refunds after timeout. The buyer signs and pays the transaction fee, so their wallet needs devnet SOL.
 
 ---
 
@@ -291,7 +290,7 @@ The buyer locks USDC into a one-time escrow PDA with a timeout. The seller relea
 - **Fee-payer isolation** — The fee payer is blocked from appearing as an escrow authority.
 - **Charge-after-delivery** — Sellers only submit the charge after their handler succeeds.
 - **Withdrawable credit** — Buyers can withdraw unused USDC at any time via `withdraw_credit`.
-- **Automatic refunds** — An optional background worker refunds timed-out escrows when all registered seller services are unreachable. It supports every buyer and uses only the facilitator key to submit refunds.
+- **Manual escrow refunds** — Buyers can submit a signed refund after the escrow timeout from the Playground. The buyer pays the transaction fee; prepaid credit can be withdrawn at any time.
 
 ---
 
@@ -313,10 +312,9 @@ Set these environment variables in the Vercel project before deploying:
 - `DATABASE_URL` — PostgreSQL connection string
 - `SOLANA_RPC_URL` — Solana devnet RPC URL
 - `ESCROW_PROGRAM_ID` and `USDC_MINT` — deployed devnet program and token mint addresses
-- `FACILITATOR_PRIVATE_KEY` and `FEE_PAYER_PRIVATE_KEY` — base58 secret keys used by settlement and fee sponsorship
-- `AUTO_REFUND_ENABLED=false` — Vercel functions do not run the persistent background refund worker; run that worker separately if automatic refunds are needed
+- `FACILITATOR_PRIVATE_KEY` and `FEE_PAYER_PRIVATE_KEY` — base58 secret keys used by settlement and fee-payer isolation checks
 
-The on-chain refund instruction allows any caller to trigger a refund after timeout and sends the funds to the buyer recorded in escrow.
+The Playground can submit a buyer-signed refund after its escrow timeout. Buyers need devnet SOL for the refund transaction and, if needed, creation of their USDC token account. Refunds return funds only to the buyer recorded in escrow.
 
 The app uses the Node.js runtime for blockchain and PostgreSQL API handlers. Vercel's standard Next.js build and output settings are sufficient; no custom output directory is required.
 

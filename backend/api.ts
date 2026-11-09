@@ -319,7 +319,12 @@ export async function handleStatusGet(request: Request): Promise<Response> {
           { status: 404 },
         );
       }
-      return Response.json(escrow);
+      return Response.json({
+        ...escrow,
+        amount: escrow.amount.toString(),
+        timeout: escrow.timeout.toString(),
+        escrowId: escrow.escrowId.toString(),
+      });
     }
 
     if (creditAddress) {

@@ -32,7 +32,7 @@ export async function releaseEscrow(
   return settleEscrow(escrowAddress, serializedTransaction, "release");
 }
 
-/** Submit a timeout-eligible refund transaction signed by any caller. */
+/** Submit a timeout-eligible refund transaction signed and paid for by the buyer. */
 export async function refundEscrow(
   escrowAddress: string,
   serializedTransaction: string,
@@ -60,12 +60,12 @@ async function settleEscrow(
       tx.instructions.length === 1 ? tx.instructions[0] : undefined;
     if (
       !instruction ||
-      !tx.feePayer?.equals(facilitatorKeypair.publicKey) ||
+      !tx.feePayer ||
       !tx.recentBlockhash
     ) {
       return {
         success: false,
-        error: "Settlement transaction must use the facilitator as fee payer",
+        error: "Settlement transaction must include a fee payer and recent blockhash",
       };
     }
     if (
@@ -105,6 +105,19 @@ async function settleEscrow(
       action === "release"
         ? seller
         : refundCaller!;
+    if (
+      action === "release"
+        ? !tx.feePayer.equals(facilitatorKeypair.publicKey)
+        : !expectedSigner.equals(buyer) || !tx.feePayer.equals(buyer)
+    ) {
+      return {
+        success: false,
+        error:
+          action === "refund"
+            ? "Only the buyer may submit and pay for a manual refund"
+            : "Settlement transaction must use the facilitator as fee payer",
+      };
+    }
     const expectedDiscriminator =
       action === "release" ? RELEASE_DISCRIMINATOR : REFUND_DISCRIMINATOR;
 
@@ -174,7 +187,7 @@ async function settleEscrow(
       };
     }
 
-    tx.partialSign(facilitatorKeypair);
+    if (action === "release") tx.partialSign(facilitatorKeypair);
     if (!tx.verifySignatures(true)) {
       return {
         success: false,

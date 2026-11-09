@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Buffer } from "buffer";
 import {
@@ -252,6 +252,86 @@ async function runCreditAction(
   }, null, 2);
 }
 
+async function runManualEscrowRefund(
+  privateKey: string,
+  escrowAddressValue: string,
+): Promise<string> {
+  const buyer = parseBuyerKey(privateKey);
+  let escrowAddress: PublicKey;
+  try {
+    escrowAddress = new PublicKey(escrowAddressValue.trim());
+  } catch {
+    throw new Error("Enter a valid escrow address.");
+  }
+
+  const escrowResponse = await fetch(
+    `/api?escrowAddress=${encodeURIComponent(escrowAddress.toBase58())}`,
+    { cache: "no-store" },
+  );
+  const escrow = await escrowResponse.json();
+  if (!escrowResponse.ok) {
+    throw new Error(escrow.error || "Could not find that escrow.");
+  }
+  if (escrow.state !== "Locked") {
+    throw new Error(`This escrow is ${escrow.state}; only locked escrows can be refunded.`);
+  }
+  if (escrow.buyer !== buyer.publicKey.toBase58()) {
+    throw new Error("The buyer key does not match this escrow.");
+  }
+  if (BigInt(escrow.timeout) > BigInt(Math.floor(Date.now() / 1000))) {
+    const timeout = new Date(Number(escrow.timeout) * 1000).toLocaleString();
+    throw new Error(`This escrow cannot be refunded before ${timeout}.`);
+  }
+
+  const connection = new Connection(SOLANA_RPC_URL, "confirmed");
+  const mint = new PublicKey(escrow.mint);
+  const seller = new PublicKey(escrow.seller);
+  const vault = PublicKey.findProgramAddressSync(
+    [Buffer.from("vault"), escrowAddress.toBuffer()],
+    new PublicKey(ESCROW_PROGRAM_ID),
+  )[0];
+  const buyerToken = await getBuyerTokenAccount(connection, buyer);
+  const instruction = new TransactionInstruction({
+    programId: new PublicKey(ESCROW_PROGRAM_ID),
+    keys: [
+      { pubkey: buyer.publicKey, isSigner: true, isWritable: false },
+      { pubkey: buyer.publicKey, isSigner: false, isWritable: true },
+      { pubkey: seller, isSigner: false, isWritable: false },
+      { pubkey: mint, isSigner: false, isWritable: false },
+      { pubkey: escrowAddress, isSigner: false, isWritable: true },
+      { pubkey: vault, isSigner: false, isWritable: true },
+      { pubkey: buyerToken, isSigner: false, isWritable: true },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    ],
+    data: await discriminator("global", "refund"),
+  });
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  const transaction = new Transaction({
+    feePayer: buyer.publicKey,
+    recentBlockhash: blockhash,
+  }).add(instruction);
+  transaction.sign(buyer);
+
+  const response = await fetch("/api/settlements", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      escrowAddress: escrowAddress.toBase58(),
+      action: "refund",
+      transaction: transaction.serialize().toString("base64"),
+    }),
+  });
+  const result = await response.json();
+  if (!response.ok || result.success !== true) {
+    throw new Error(result.error || "Escrow refund failed.");
+  }
+  return JSON.stringify({
+    escrowAddress: escrowAddress.toBase58(),
+    refundTransaction: result.signature,
+    refundedTo: buyer.publicKey.toBase58(),
+  }, null, 2);
+}
+
 async function createPayment(
   challengeBody: string,
   buyerPrivateKey: string,
@@ -360,16 +440,25 @@ type PlaygroundResult = {
 };
 
 export default function PlaygroundPage() {
-  const [mode, setMode] = useState<"endpoint" | "check" | "deposit" | "withdraw">("endpoint");
+  const [mode, setMode] = useState<"endpoint" | "check" | "deposit" | "withdraw" | "refund">("endpoint");
   const [endpoint, setEndpoint] = useState("");
   const [prompt, setPrompt] = useState("Hello from the GHOSTRAIL playground");
   const [buyerPrivateKey, setBuyerPrivateKey] = useState("");
   const [buyerAddress, setBuyerAddress] = useState("");
   const [sellerAddress, setSellerAddress] = useState("");
+  const [escrowAddress, setEscrowAddress] = useState("");
   const [depositAmount, setDepositAmount] = useState("1");
   const [result, setResult] = useState<PlaygroundResult | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const refundAddress = new URLSearchParams(window.location.search).get("refund");
+    if (refundAddress) {
+      setEscrowAddress(refundAddress);
+      setMode("refund");
+    }
+  }, []);
 
   async function sendRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -392,9 +481,12 @@ export default function PlaygroundPage() {
       setError("Enter the buyer wallet address.");
       return;
     } else if (mode !== "check" && !buyerPrivateKey.trim()) {
-      setError("Enter the buyer private key to manage prepaid credit.");
+      setError("Enter the buyer private key to sign this action.");
       return;
-    } else if (!sellerAddress.trim()) {
+    } else if (mode === "refund" && !escrowAddress.trim()) {
+      setError("Enter the escrow address to refund.");
+      return;
+    } else if (mode !== "refund" && mode !== "endpoint" && !sellerAddress.trim()) {
       setError("Enter the seller wallet address.");
       return;
     }
@@ -403,10 +495,12 @@ export default function PlaygroundPage() {
     setLoading(true);
     try {
       if (mode !== "endpoint") {
-        const body = await runCreditAction(mode, buyerPrivateKey, buyerAddress, sellerAddress, depositAmount);
+        const body = mode === "refund"
+          ? await runManualEscrowRefund(buyerPrivateKey, escrowAddress)
+          : await runCreditAction(mode, buyerPrivateKey, buyerAddress, sellerAddress, depositAmount);
         setResult({
           status: 200,
-          statusText: mode === "check" ? "Credit balance" : mode === "deposit" ? "Deposit confirmed" : "Withdrawal confirmed",
+          statusText: mode === "check" ? "Credit balance" : mode === "deposit" ? "Deposit confirmed" : mode === "refund" ? "Refund confirmed" : "Withdrawal confirmed",
           body,
           receipt: null,
         });
@@ -504,8 +598,7 @@ export default function PlaygroundPage() {
           <header className="playground-header">
             <h1 className="playground-title">x402 Playground</h1>
             <p className="mut playground-intro">
-              Inspect or call a service, then check, deposit, or withdraw a
-              buyer&apos;s prepaid USDC credit for a seller.
+              Call a service, manage prepaid credit, or manually refund an expired escrow.
             </p>
           </header>
 
@@ -518,6 +611,7 @@ export default function PlaygroundPage() {
                   <option value="check">Check prepaid credit</option>
                   <option value="deposit">Deposit USDC credit</option>
                   <option value="withdraw">Withdraw remaining credit</option>
+                  <option value="refund">Refund expired escrow</option>
                 </select>
               </label>
 
@@ -557,7 +651,7 @@ export default function PlaygroundPage() {
                       />
                     </label>
                   )}
-                  <label className="playground-field">
+                  {mode !== "refund" && <label className="playground-field">
                     <span>Seller wallet address</span>
                     <input
                       type="text"
@@ -566,7 +660,20 @@ export default function PlaygroundPage() {
                       value={sellerAddress}
                       onChange={(event) => setSellerAddress(event.target.value)}
                     />
-                  </label>
+                  </label>}
+                  {mode === "refund" && (
+                    <label className="playground-field">
+                      <span>Escrow address</span>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Expired escrow account address"
+                        value={escrowAddress}
+                        onChange={(event) => setEscrowAddress(event.target.value)}
+                      />
+                      <small>Refunds are available after the escrow timeout. The buyer wallet pays the transaction fee.</small>
+                    </label>
+                  )}
                   {mode === "deposit" && (
                     <label className="playground-field">
                       <span>Deposit amount <em>USDC</em></span>
@@ -597,7 +704,9 @@ export default function PlaygroundPage() {
                   <small>
                     {mode === "endpoint"
                       ? "Leave blank to inspect the service's 402 challenge. With a key, the browser signs a prepaid USDC charge locally. The private key is not sent to the server."
-                      : "Used in this browser to sign the selected credit action. The private key is not sent to the server."}
+                      : mode === "refund"
+                        ? "Used in this browser to sign the refund. The private key is not sent to the server."
+                        : "Used in this browser to sign the selected credit action. The private key is not sent to the server."}
                   </small>
                 </label>
               )}
@@ -611,7 +720,7 @@ export default function PlaygroundPage() {
                   ? "Sending..."
                   : mode === "endpoint"
                     ? buyerPrivateKey.trim() ? "Send paid request" : "Inspect endpoint"
-                    : mode === "check" ? "Check credit" : mode === "deposit" ? "Deposit USDC" : "Withdraw credit"}
+                    : mode === "check" ? "Check credit" : mode === "deposit" ? "Deposit USDC" : mode === "refund" ? "Refund escrow" : "Withdraw credit"}
               </button>
 
               {error && (

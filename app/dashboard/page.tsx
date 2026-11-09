@@ -223,6 +223,15 @@ export default function DashboardPage() {
                   ) : (
                     "none"
                   )}
+                  {record.escrowAddress && (
+                    <a
+                      href={`/playground?refund=${encodeURIComponent(record.escrowAddress)}`}
+                      className="tx-hash-link"
+                      title={`Refund escrow ${record.escrowAddress}`}
+                    >
+                      Refund escrow
+                    </a>
+                  )}
                 </div>
               </div>
             );
