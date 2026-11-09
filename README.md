@@ -262,7 +262,6 @@ Available in **Node.js** and **Python**:
 | Call a paid service    | `callService()`    | —                   |
 | Deposit USDC credit    | `depositCredit()`  | —                   |
 | Withdraw unused credit | `withdrawCredit()` | —                   |
-| Refund expired escrow | `refundEscrow()` / `refund_escrow()` | — |
 | Check credit balance   | `checkCredit()`    | —                   |
 | Register a service     | —                  | `registerService()` |
 | Delete a service       | —                  | `deleteService()`   |
@@ -303,16 +302,6 @@ The buyer locks USDC into a one-time escrow PDA with a timeout. The seller relea
 - Solana CLI + devnet SOL
 - Anchor CLI (to build/deploy the escrow program)
 
-### Deploy to Vercel
-
-Import this repository into Vercel and deploy it as a Next.js project. The production SDK base URL is `https://ghostrail-five.vercel.app` (override it with `FACILITATOR_URL` when using another deployment).
-
-Set these environment variables in the Vercel project before deploying:
-
-- `DATABASE_URL` — PostgreSQL connection string
-- `SOLANA_RPC_URL` — Solana devnet RPC URL
-- `ESCROW_PROGRAM_ID` and `USDC_MINT` — deployed devnet program and token mint addresses
-- `FACILITATOR_PRIVATE_KEY` and `FEE_PAYER_PRIVATE_KEY` — base58 secret keys used by settlement and fee-payer isolation checks
 
 The Playground can submit a buyer-signed refund after its escrow timeout. Buyers need devnet SOL for the refund transaction and, if needed, creation of their USDC token account. Refunds return funds only to the buyer recorded in escrow.
 
