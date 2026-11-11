@@ -14,14 +14,13 @@ export default function Home() {
             x402 facilitator on Solana
           </div>
           <h1 className="hero-title">
-            Payments that settle. <br className="hero-break" />
-            Fees that vanish.
+            Accept API payments. <br className="hero-break" />
+            Settle after delivery.
           </h1>
           <p className="mut hero-description">
-            Give your agents a tab for APIs. Fund it once with USDC and let
-            calls settle automatically, one nonce-protected charge at a time.
-            USDC covers the calls and SOL covers transaction fees and
-            account rent.
+            Add x402 payments to your API with Ghostrail. Buyers authorize
+            nonce-protected charges from prepaid USDC credit, and payment
+            settles only after your service successfully responds.
           </p>
           <div className="hero-actions">
             <Link href="/dashboard" className="btn">
@@ -302,6 +301,26 @@ export default function Home() {
             >
               Download SDK
             </a>
+          </div>
+        </section>
+
+        <section className="closing-cta" aria-labelledby="closing-cta-title">
+          <div className="mono closing-cta-eyebrow">BUILD WITH GHOSTRAIL</div>
+          <h2 className="closing-cta-title" id="closing-cta-title">
+            Bring payments to your API.
+          </h2>
+          <p className="mut closing-cta-copy">
+            Add x402 to your service, let buyers authorize each charge, and
+            settle only after a successful response. Start building on Solana
+            devnet with Ghostrail.
+          </p>
+          <div className="closing-cta-actions">
+            <Link href="/docs" className="btn">
+              Read the docs
+            </Link>
+            <Link href="/playground" className="btn2">
+              Try the playground
+            </Link>
           </div>
         </section>
 

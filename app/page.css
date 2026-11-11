@@ -339,6 +339,44 @@
   margin-top: 16px;
 }
 
+.closing-cta {
+  margin: 0 0 40px;
+  padding: 52px 32px;
+  border: 1px solid var(--border-card);
+  border-radius: 20px;
+  background: var(--bg-card);
+  text-align: center;
+}
+
+.closing-cta-eyebrow {
+  margin-bottom: 12px;
+  color: var(--text-accent);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.closing-cta-title {
+  margin: 0 0 12px;
+  color: #fff;
+  font-size: clamp(28px, 4vw, 40px);
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+}
+
+.closing-cta-copy {
+  max-width: 660px;
+  margin: 0 auto 24px;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.closing-cta-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .status-card {
   display: flex;
   justify-content: space-between;
@@ -613,6 +651,27 @@
     gap: 10px;
   }
   .integration-actions .btn2 {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    padding: 13px 18px;
+    min-height: 46px;
+  }
+
+  .closing-cta {
+    padding: 32px 18px;
+    margin-bottom: 28px;
+    border-radius: 18px;
+  }
+  .closing-cta-copy {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .closing-cta-actions {
+    flex-direction: column;
+  }
+  .closing-cta-actions .btn,
+  .closing-cta-actions .btn2 {
     width: 100%;
     justify-content: center;
     text-align: center;
