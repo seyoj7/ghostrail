@@ -16,35 +16,20 @@ Ghostrail coordinates trustless, automated micropayments between autonomous agen
 ### System Architecture Diagram
 
 ```mermaid
-flowchart TB
-  subgraph Client["1. CLIENT / AGENT"]
-    BuyerApp["Buyer App"] --> SDK["Ghostrail SDK<br/>Node.js / Python"] --> Wallet["Buyer Wallet"]
-  end
+flowchart LR
+  Client["1. CLIENT / AGENT<br/>Buyer App<br/>Ghostrail SDK (Node.js / Python)<br/>Buyer Wallet"]
+  Seller["2. SELLER / API<br/>API Endpoint and x402 Middleware<br/>Upstream Service"]
+  Facilitator["3. GHOSTRAIL FACILITATOR<br/>Payments, Services API and Dashboard<br/>Verification and nonce checks<br/>Settlement and escrow"]
+  Database["PostgreSQL<br/>Signatures, Payments, Services"]
+  Solana["4. SOLANA DEVNET<br/>Anchor Escrow and Prepaid Credit<br/>Credit and Escrow PDAs<br/>USDC Vaults"]
 
-  subgraph Seller["2. SELLER / API"]
-    API["API Endpoint"] --> Challenge["x402 Challenge"] --> Upstream["Upstream Service"]
-  end
-
-  Wallet -->|"HTTP / x402"| API
-  API -->|"Verify payment"| Gateway
-  Upstream -->|"After successful response"| Settlement
-
-  subgraph Facilitator["3. GHOSTRAIL FACILITATOR"]
-    Gateway["API Gateway<br/>Verify, Settle, Services"] --> Verification["Verification<br/>Program checks, nonce guard"] --> Settlement["Settlement & Escrow<br/>Facilitator co-sign"]
-    Database[("PostgreSQL<br/>Signatures, Payments, Services")]
-    Verification --> Database
-    Settlement --> Database
-  end
-
-  Verification -->|"Solana JSON-RPC"| Program
-  Settlement -->|"Solana JSON-RPC"| Program
-
-  subgraph Blockchain["4. SOLANA DEVNET"]
-    Program["Anchor Program<br/>Escrow & Prepaid Credit"] --> Credit["Credit PDA<br/>Balance, nonce"]
-    Program --> Escrow["Escrow PDA<br/>Timeout, state"]
-    Credit --> Vault["Vault Token Account<br/>Devnet USDC"]
-    Escrow --> Vault
-  end
+  Client -->|"HTTP request / X-PAYMENT"| Seller
+  Seller -->|"HTTP 402 challenge"| Client
+  Seller -->|"Verify payment"| Facilitator
+  Facilitator -->|"Authorized"| Seller
+  Seller -->|"Settle after successful response"| Facilitator
+  Facilitator --> Database
+  Facilitator -->|"Solana JSON-RPC"| Solana
 ```
 
 
@@ -57,14 +42,15 @@ The complete transaction lifecycle proceeds across four deterministic phases:
 
 ```mermaid
 flowchart LR
-  Deposit["1. Deposit credit<br/>Buyer funds Credit PDA with USDC"]
+  Deposit["1. Deposit credit<br/>Buyer deposits 1 to 100 USDC into the vault"]
   Challenge["2. Request service<br/>Seller returns an x402 HTTP 402 challenge"]
-  Verify["3. Authorize payment<br/>Buyer signs; facilitator checks nonce and balance"]
-  Delivered{"4. Service succeeds?"}
-  Charge["Settle charge on Solana<br/>Update balance and nonce"]
+  Verify["3. Authorize payment<br/>Buyer signs, facilitator checks nonce and balance"]
+  Handler["4. Seller runs service handler"]
+  Delivered{"Handler succeeds?"}
+  Charge["Settle charge on Solana<br/>Deduct balance and increment nonce"]
   NoCharge["No charge<br/>Credit stays unchanged"]
 
-  Deposit --> Challenge --> Verify --> Delivered
+  Deposit --> Challenge --> Verify --> Handler --> Delivered
   Delivered -->|"Yes"| Charge
   Delivered -->|"No"| NoCharge
 ```
@@ -77,10 +63,10 @@ flowchart LR
 ```mermaid
 flowchart LR
   Unfunded["Unfunded"] -->|"deposit_credit (1 to 100 USDC)"| Active["Active Pool<br/>USDC in vault"]
-  Active -->|"POST /resource with signed X-PAYMENT charge"| Authorized["Authorized"]
+  Active -->|"POST /resource with signed X-PAYMENT charge"| Authorized["Authorized (off-chain)"]
   Authorized -->|"Handler fails: no charge, balance unchanged"| Active
-  Authorized -->|"Handler succeeds"| Settled["Settled<br/>Funds move to Seller Token Account"]
-  Settled -->|"Next request, nonce increments by 1"| Active
+  Authorized -->|"Handler succeeds"| Settled["Payment settled<br/>USDC sent to seller, balance and nonce updated"]
+  Settled -->|"Next request"| Active
   Active -->|"withdraw_credit"| Withdrawn["Buyer reclaims unused USDC"]
 ```
 
