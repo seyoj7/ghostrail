@@ -15,67 +15,39 @@ Ghostrail coordinates trustless, automated micropayments between autonomous agen
 
 ### System Architecture Diagram
 
+```mermaid
+flowchart TB
+  subgraph Client["1. CLIENT / AGENT"]
+    BuyerApp["Buyer App"] --> SDK["Ghostrail SDK<br/>Node.js / Python"] --> Wallet["Buyer Wallet"]
+  end
+
+  subgraph Seller["2. SELLER / API"]
+    API["API Endpoint"] --> Challenge["x402 Challenge"] --> Upstream["Upstream Service"]
+  end
+
+  Wallet -->|"HTTP / x402"| API
+  API -->|"Verify payment"| Gateway
+  Upstream -->|"After successful response"| Settlement
+
+  subgraph Facilitator["3. GHOSTRAIL FACILITATOR"]
+    Gateway["API Gateway<br/>Verify, Settle, Services"] --> Verification["Verification<br/>Program checks, nonce guard"] --> Settlement["Settlement & Escrow<br/>Facilitator co-sign"]
+    Database[("PostgreSQL<br/>Signatures, Payments, Services")]
+    Verification --> Database
+    Settlement --> Database
+  end
+
+  Verification -->|"Solana JSON-RPC"| Program
+  Settlement -->|"Solana JSON-RPC"| Program
+
+  subgraph Blockchain["4. SOLANA DEVNET"]
+    Program["Anchor Program<br/>Escrow & Prepaid Credit"] --> Credit["Credit PDA<br/>Balance, nonce"]
+    Program --> Escrow["Escrow PDA<br/>Timeout, state"]
+    Credit --> Vault["Vault Token Account<br/>Devnet USDC"]
+    Escrow --> Vault
+  end
 ```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                                 1. CLIENT / AGENT TIER                                 │
-│  [AI Agent / Buyer App] ──> [Ghostrail SDK (Node / Python)] ──> [Ed25519 Buyer Wallet] │
-└───────────────────────────────────────────┬────────────────────────────────────────────┘
-                                            │ HTTP / x402 Protocol
-                                            ▼
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                              2. SELLER / RESOURCE PROVIDER                             │
-│  [API Endpoint] ──> [x402 Middleware Challenge] ──> [Upstream Service]                 │
-└──────────────────────┬─────────────────────────────────────────────────────────────────┘
-                       │
-       Payment Verify  │ Settle Charge
-       & Auth Status   │ After Success
-                       ▼
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                             3. GHOSTRAIL FACILITATOR TIER                              │
-│  ┌───────────────────────┐  ┌─────────────────────────┐  ┌──────────────────────────┐  │
-│  │     API Gateways      │  │   Verification Engine   │  │   Settlement & Escrow    │  │
-│  │  • POST /api/payments/verify│• verify.ts           │  │  • settlement.ts         │  │
-│  │  • PUT /api/settlements│  │  • prepaid.ts          │  │  • settlement.ts         │  │
-│  │  • /api/services      │  │  • Disallowed Program   │  │  • escrow.ts              │  │
-│  │  • Dashboard & UI     │  │    & Nonce Guard        │  │  • Facilitator Co-sign   │  │
-│  └───────────┬───────────┘  └────────────┬────────────┘  └────────────┬─────────────┘  │
-│              └───────────────────────────┼────────────────────────────┘                │
-│                                          ▼                                             │
-│                       ┌─────────────────────────────────────┐                          │
-│                       │    PostgreSQL Database (Neon DB)    │                          │
-│                       │  • seen_signatures (Anti-replay)    │                          │
-│                       │  • payment_records (Audit logs)     │                          │
-│                       │  • registered_services (Directory)  │                          │
-│                       └──────────────────┬──────────────────┘                          │
-└──────────────────────────────────────────┼─────────────────────────────────────────────┘
-                                           │ Solana JSON-RPC
-                                           ▼
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                             4. SOLANA BLOCKCHAIN (DEVNET)                              │
-│                                                                                        │
-│  ┌──────────────────────────────────────────────────────────────────────────────────┐  │
-│  │                   Anchor Program: Escrow & Prepaid Credit                        │  │
-│  │  Instructions: [deposit_credit]  [charge_credit]  [withdraw_credit]  [lock]      │  │
-│  └───────────────────────────────────────┬──────────────────────────────────────────┘  │
-│                                          │                                             │
-│          ┌───────────────────────────────┴───────────────────────────────┐             │
-│          ▼                                                               ▼             │
-│  ┌──────────────────────────────┐                            ┌──────────────────────┐  │
-│  │          Credit PDA          │                            │      Escrow PDA      │  │
-│  │ seeds: [credit, buyer,       │── controls vault ──►       │ seeds: [escrow,      │  │
-│  │         seller, mint]        │                            │         buyer, id]   │  │
-│  │ • balance    • next_nonce    │                            │ • timeout • state    │  │
-│  └──────────────────────────────┘                            └──────────────────────┘  │
-│                 │                                                        │             │
-│                 └────────────────────────┬───────────────────────────────┘             │
-│                                          ▼                                             │
-│                          ┌───────────────────────────────┐                             │
-│                          │      Vault Token Account      │                             │
-│                          │ seeds: [vault, credit_or_pda] │                             │
-│                          │ Holds Devnet USDC Tokens      │                             │
-│                          └───────────────────────────────┘                             │
-└────────────────────────────────────────────────────────────────────────────────────────┘
-```
+
+
 
 ---
 
@@ -83,119 +55,35 @@ Ghostrail coordinates trustless, automated micropayments between autonomous agen
 
 The complete transaction lifecycle proceeds across four deterministic phases:
 
+```mermaid
+flowchart LR
+  Deposit["1. Deposit credit<br/>Buyer funds Credit PDA with USDC"]
+  Challenge["2. Request service<br/>Seller returns an x402 HTTP 402 challenge"]
+  Verify["3. Authorize payment<br/>Buyer signs; facilitator checks nonce and balance"]
+  Delivered{"4. Service succeeds?"}
+  Charge["Settle charge on Solana<br/>Update balance and nonce"]
+  NoCharge["No charge<br/>Credit stays unchanged"]
+
+  Deposit --> Challenge --> Verify --> Delivered
+  Delivered -->|"Yes"| Charge
+  Delivered -->|"No"| NoCharge
 ```
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                               PHASE 1: ONE-TIME CREDIT DEPOSIT                                   │
-├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                                  │
-│   [ Buyer Agent / App ]                                    [ Solana Devnet (Anchor) ]            │
-│             │                                                          │                         │
-│             ├─── 1. Build & sign deposit_credit tx ───────────────────►│                         │
-│             │       (1 to 100 USDC deposit)                            │                         │
-│             │                                                          ├── Transfers USDC        │
-│             │                                                          │   into Vault PDA        │
-│             │                                                          ├── Initializes Credit    │
-│             │                                                          │   PDA with nextNonce=0  │
-│             │◄── 2. Deposit confirmed (Credit PDA ready) ──────────────┤                         │
-│                                                                                                  │
-└────────────────────────────────────────────────┬─────────────────────────────────────────────────┘
-                                                 │
-                                                 ▼
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                               PHASE 2: HTTP 402 NEGOTIATION                                      │
-├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                                  │
-│   [ Buyer Agent / App ]                                    [ Seller Service Gateway ]            │
-│             │                                                          │                         │
-│             ├─── 1. POST /resource (e.g. prompt, no payment) ─────────►│                         │
-│             │                                                          │                         │
-│             │◄── 2. HTTP 402 Payment Required ─────────────────────────┤                         │
-│             │       x402 challenge: price, seller wallet, asset mint,  │                         │
-│             │       creditModel: "prepaid"                             │                         │
-│                                                                                                  │
-└────────────────────────────────────────────────┬─────────────────────────────────────────────────┘
-                                                 │
-                                                 ▼
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                             PHASE 3: PRE-DELIVERY VERIFICATION                                   │
-├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                                  │
-│   [ Buyer Agent ]            [ Seller Gateway ]             [ Facilitator ]         [ Solana ]   │
-│          │                          │                              │                    │        │
-│          ├── 1. Sign charge_credit  │                              │                    │        │
-│          │      (amount + nonce)    │                              │                    │        │
-│          │                          │                              │                    │        │
-│          ├── 2. POST /resource ────►│                              │                    │        │
-│          │      (X-PAYMENT header)  ├── 3. POST /api/payments/verify ─►│                 │       │
-│          │                          │      (payment payload)       ├── 4. Anti-replay   │        │
-│          │                          │                              │      DB check      │        │
-│          │                          │                              ├── 5. Query PDA ───►│        │
-│          │                          │                              │      (nonce/bal)   │        │
-│          │                          │                              │◄── Verified ───────┤        │
-│          │                          │◄── 6. HTTP 200 Accepted ─────┤                             │
-│          │                          │       (authorized, unpaid)   │                             │
-│                                                                                                  │
-└────────────────────────────────────────────────┬─────────────────────────────────────────────────┘
-                                                 │
-                                                 ▼
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                         PHASE 4: EXECUTION & POST-DELIVERY SETTLEMENT                            │
-├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                                  │
-│   [ Buyer Agent ]            [ Seller Gateway ]             [ Facilitator ]         [ Solana ]   │
-│          │                          │                              │                    │        │
-│          │                          ├── 1. Execute Service Handler │                    │        │
-│          │                          │      (e.g., call NVIDIA API) │                    │        │
-│          │                          │      • If failed: Stop here! │                    │        │
-│          │                          │        (credit is untouched) │                    │        │
-│          │                          │                              │                    │        │
-│          │                          ├── 2. Handler Succeeded! ─────┼────────────────────┤        │
-│          │                          │      PUT /api/settlements (action: charge)        │        │
-│          │                          │      (creditAddress, signature, tx)               │        │
-│          │                          │                              ├── 3. Broadcast ───►│        │
-│          │                          │                              │      charge_credit │        │
-│          │                          │                              │      on-chain      ├── Deduct bal
-│          │                          │                              │                    ├── Bump nonce
-│          │                          │                              │◄── Confirmed ──────┤        │
-│          │                          │                              ├── 4. Record to DB  │        │
-│          │                          │◄── 5. Settled { signature } ─┤                             │
-│          │                                                         │                             │
-│          │◄── 6. HTTP 200 OK (API Result Payload) ─────────────────┤                             │
-│          │       Header: X-PAYMENT-RESPONSE (confirmed tx hash)                                  │
-│                                                                                                  │
-└──────────────────────────────────────────────────────────────────────────────────────────────────┘
-```
+
+
+
 
 #### State Transition Lifecycle
 
+```mermaid
+flowchart LR
+  Unfunded["Unfunded"] -->|"deposit_credit (1 to 100 USDC)"| Active["Active Pool<br/>USDC in vault"]
+  Active -->|"POST /resource with signed X-PAYMENT charge"| Authorized["Authorized"]
+  Authorized -->|"Handler fails: no charge, balance unchanged"| Active
+  Authorized -->|"Handler succeeds"| Settled["Settled<br/>Funds move to Seller Token Account"]
+  Settled -->|"Next request, nonce increments by 1"| Active
+  Active -->|"withdraw_credit"| Withdrawn["Buyer reclaims unused USDC"]
 ```
-       ┌───────────────┐
-       │   UNFUNDED    │
-       └───────┬───────┘
-               │  deposit_credit (1-100 USDC)
-               ▼
-       ┌───────────────┐
-  ┌───►│  ACTIVE POOL  │◄──────────────────────┐
-  │    │  (In Vault)   │                       │
-  │    └───────┬───────┘                       │
-  │            │  POST /resource               │
-  │            ▼  (X-PAYMENT charge signed)    │
-  │    ┌───────────────┐                       │
-  │    │  AUTHORIZED   │                       │
-  │    └───────┬───────┘                       │
-  │            │                               │
-  │     Handler execution:                     │
-  │            ├─────── Handler Fails ─────────┘ (No charge submitted;
-  │            │                                  balance remains 100% intact)
-  │            ▼ Handler Succeeds
-  │    ┌───────────────┐
-  │    │    SETTLED    │ ───► Funds moved to Seller Token Account
-  │    └───────────────┘      Nonce incremented by 1
-  │            │
-  │            └─────────► Next request repeats from ACTIVE POOL
-  │
-  └──────────── withdraw_credit (Buyer can reclaim unused USDC at any time)
-```
+
 
 ---
 
